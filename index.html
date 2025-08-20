@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meu Termo</title>
+    <title>Termo Duzamigos</title>
     <style>
         :root {
             --dark-bg: #1a1a1a;
@@ -68,7 +68,7 @@
             align-items: center;
             gap: 10px;
         }
-
+        
         select, button {
             padding: 8px 15px;
             font-size: 1em;
@@ -77,21 +77,24 @@
             border-radius: 5px;
         }
         
-        select {
-            background-color: var(--box-border);
-            color: var(--text-color);
-        }
-        
         .start-button {
             background-color: var(--correct);
             color: white;
             font-weight: bold;
         }
 
-        #gameBoard {
+        #gameContainer {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .gameBoard {
             display: flex;
             flex-direction: column;
             gap: 8px;
+            min-width: 300px;
         }
 
         .row {
@@ -204,10 +207,60 @@
             font-weight: bold;
             color: var(--text-color);
         }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: var(--main-bg);
+            color: var(--text-color);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            max-width: 80%;
+            min-width: 300px;
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .modal-content p {
+            margin: 8px 0;
+            font-size: 1.1em;
+        }
+
+        .mute-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1.5em;
+            color: var(--text-color);
+            padding: 5px;
+        }
+
+        .mute-button:hover {
+            color: white;
+        }
     </style>
 </head>
 <body>
-    <h1>Termo dos Amigo</h1>
+    <h1>Termo Duzamigos</h1>
 
     <div class="game-stats">
         <span>🏆 <span id="victoryCount">0</span></span>
@@ -216,47 +269,89 @@
     </div>
 
     <div class="options">
-        <label for="wordLength">Escolha o número de letras:</label>
-        <select id="wordLength">
-            <option value="4">4 letras</option>
-            <option value="5">5 letras</option>
-            <option value="6">6 letras</option>
-            <option value="7">7 letras</option>
+        <label for="wordCountSelect">Dificuldade:</label>
+        <select id="wordCountSelect">
+            <option value="1">1 termo</option>
+            <option value="2">2 termos</option>
+            <option value="3">3 termos</option>
+            <option value="4">4 termos</option>
         </select>
         <button id="startButton" class="start-button">Começar</button>
     </div>
     
-    <div id="gameBoard"></div>
+    <div id="gameContainer"></div>
     <div id="keyboard"></div>
     <div id="tempMessage"></div>
     <p id="message"></p>
+
+    <div id="endGameModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="modalStatus"></h2>
+            <p id="modalCorrectWords"></p>
+            <p>Vitórias na Rodada: <span id="modalVictories"></span></p>
+            <p>Seu Recorde: <span id="modalRecord"></span></p>
+            <p>Tempo Levado: <span id="modalTime"></span></p>
+            <button id="modalNewGameButton" class="start-button">Novo Jogo</button>
+        </div>
+    </div>
     
+    <button class="mute-button" id="muteButton">🔊</button>
+
     <script>
         let wordDatabase = [];
-        let currentWord = '';
-        let currentLength = 0;
+        let currentWords = [];
+        const wordLength = 5;
         let currentRow = 0;
         const maxAttempts = 6;
         let victoryCount = 0;
         let recordCount = 0;
         let normalizedWordDatabase = [];
+        let startTime;
+        let isMuted = false;
+        let solvedWords = 0;
 
-        const gameBoard = document.getElementById('gameBoard');
+        const correctSound = new Audio('correct.mp3');
+        const incorrectSound = new Audio('incorrect.mp3');
+        const defeatSound = new Audio('defeat.mp3');
+
+        const gameContainer = document.getElementById('gameContainer');
         const messageDisplay = document.getElementById('message');
         const startButton = document.getElementById('startButton');
-        const wordLengthSelect = document.getElementById('wordLength');
+        const wordCountSelect = document.getElementById('wordCountSelect');
         const keyboardContainer = document.getElementById('keyboard');
         const victoryCountDisplay = document.getElementById('victoryCount');
         const recordCountDisplay = document.getElementById('recordCount');
         const restartButton = document.getElementById('restartButton');
         const tempMessageDisplay = document.getElementById('tempMessage');
+        const endGameModal = document.getElementById('endGameModal');
+        const modalStatus = document.getElementById('modalStatus');
+        const modalVictories = document.getElementById('modalVictories');
+        const modalRecord = document.getElementById('modalRecord');
+        const modalTime = document.getElementById('modalTime');
+        const modalCorrectWords = document.getElementById('modalCorrectWords');
+        const modalNewGameButton = document.getElementById('modalNewGameButton');
+        const muteButton = document.getElementById('muteButton');
         let activeBox = null;
 
         startButton.addEventListener('click', loadWords);
         restartButton.addEventListener('click', startGame);
+        modalNewGameButton.addEventListener('click', () => {
+            endGameModal.style.display = 'none';
+            startGame();
+        });
+        muteButton.addEventListener('click', () => {
+            isMuted = !isMuted;
+            muteButton.textContent = isMuted ? '🔇' : '🔊';
+        });
 
         function normalizeString(str) {
             return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
+
+        function playSound(sound) {
+            if (!isMuted) {
+                sound.play();
+            }
         }
 
         function showTemporaryMessage(msg) {
@@ -269,13 +364,14 @@
 
         async function loadWords() {
             try {
-                messageDisplay.textContent = '⏳';
+                messageDisplay.textContent = 'Carregando palavras...';
                 const response = await fetch('palavras.json');
                 if (!response.ok) {
-                    throw new Error('Erro ao carregar o arquivo de palavras. Verifique se o arquivo "palavras.json" está na mesma pasta.');
+                    throw new Error('Erro ao carregar o arquivo de palavras.');
                 }
                 const data = await response.json();
-                wordDatabase = data.map(word => word.toUpperCase());
+                const filtered = data.filter(word => word.length === wordLength);
+                wordDatabase = filtered.map(word => word.toUpperCase());
                 normalizedWordDatabase = wordDatabase.map(word => normalizeString(word));
                 messageDisplay.textContent = '';
                 startGame();
@@ -286,30 +382,30 @@
         }
         
         function startGame() {
-            currentLength = parseInt(wordLengthSelect.value);
-            const filteredWords = wordDatabase.filter(word => word.length === currentLength);
+            currentWords = [];
+            solvedWords = 0;
+            const numWords = parseInt(wordCountSelect.value);
             
-            if (filteredWords.length > 0) {
-                currentWord = filteredWords[Math.floor(Math.random() * filteredWords.length)];
-                console.log('Palavra secreta:', currentWord);
-                resetGame();
-                createGameBoard(currentLength);
-                createKeyboard();
-                if (gameBoard.children.length > 0) {
-                    focusBox(gameBoard.children[0].children[0]);
-                }
-                startButton.style.display = 'none';
-            } else {
-                messageDisplay.textContent = `Não há palavras com ${currentLength} letras na lista.`;
+            const shuffledWords = wordDatabase.sort(() => 0.5 - Math.random());
+            for (let i = 0; i < numWords; i++) {
+                currentWords.push({
+                    word: shuffledWords[i],
+                    solved: false
+                });
             }
             
-            // Zera o contador de vitórias mas mantém o recorde
-            victoryCount = 0;
-            victoryCountDisplay.textContent = victoryCount;
+            console.log('Palavras secretas:', currentWords.map(w => w.word));
+            resetGame();
+            createGameBoards();
+            createKeyboard();
+            if (document.querySelector('.box')) {
+                focusBox(document.querySelector('.box'));
+            }
+            startTime = new Date();
         }
 
         function resetGame() {
-            gameBoard.innerHTML = '';
+            gameContainer.innerHTML = '';
             messageDisplay.textContent = '';
             currentRow = 0;
             activeBox = null;
@@ -318,21 +414,32 @@
             document.addEventListener('keydown', handleKeyDown);
         }
 
-        function createGameBoard(length) {
-            for (let i = 0; i < maxAttempts; i++) {
-                const row = document.createElement('div');
-                row.classList.add('row');
-                for (let j = 0; j < length; j++) {
-                    const box = document.createElement('div');
-                    box.classList.add('box');
-                    box.dataset.row = i;
-                    box.dataset.col = j;
-                    box.tabIndex = 0;
-                    box.addEventListener('click', () => focusBox(box));
-                    row.appendChild(box);
+        function createGameBoards() {
+            const numWords = currentWords.length;
+            gameContainer.style.gridTemplateColumns = `repeat(${numWords}, 1fr)`;
+            
+            currentWords.forEach((wordObj, wordIndex) => {
+                const gameBoardDiv = document.createElement('div');
+                gameBoardDiv.classList.add('gameBoard');
+                gameBoardDiv.id = `gameBoard-${wordIndex}`;
+
+                for (let i = 0; i < maxAttempts; i++) {
+                    const row = document.createElement('div');
+                    row.classList.add('row');
+                    for (let j = 0; j < wordLength; j++) {
+                        const box = document.createElement('div');
+                        box.classList.add('box');
+                        box.dataset.row = i;
+                        box.dataset.col = j;
+                        box.dataset.wordIndex = wordIndex;
+                        box.tabIndex = 0;
+                        box.addEventListener('click', () => focusBox(box));
+                        row.appendChild(box);
+                    }
+                    gameBoardDiv.appendChild(row);
                 }
-                gameBoard.appendChild(row);
-            }
+                gameContainer.appendChild(gameBoardDiv);
+            });
         }
 
         function focusBox(box) {
@@ -389,8 +496,10 @@
 
                 const currentCol = parseInt(activeBox.dataset.col);
                 const nextCol = currentCol + 1;
-                if (nextCol < currentLength) {
-                    const nextBox = gameBoard.children[currentRow].children[nextCol];
+                if (nextCol < wordLength) {
+                    const wordIndex = parseInt(activeBox.dataset.wordIndex);
+                    const gameBoardDiv = document.getElementById(`gameBoard-${wordIndex}`);
+                    const nextBox = gameBoardDiv.children[currentRow].children[nextCol];
                     focusBox(nextBox);
                 }
             }
@@ -402,92 +511,114 @@
         }
 
         function checkWord() {
-            const row = gameBoard.children[currentRow];
-            let guess = '';
-            let isRowComplete = true;
+            const currentGuess = getCurrentGuess();
 
-            for (let i = 0; i < currentLength; i++) {
-                const boxContent = row.children[i].textContent;
-                if (boxContent === '') {
-                    isRowComplete = false;
-                    break;
-                }
-                guess += boxContent;
-            }
-
-            if (!isRowComplete) {
+            if (!currentGuess) {
                 showTemporaryMessage('Preencha todas as caixas.');
                 return;
             }
             
-            if (!isWordValid(guess)) {
+            if (!isWordValid(currentGuess)) {
+                playSound(incorrectSound);
                 showTemporaryMessage('Esta palavra não é aceita.');
                 return;
             }
 
-            const correctLetters = Array.from(currentWord);
-            const guessedLetters = Array.from(guess);
+            let allWordsSolved = true;
+            let currentGuessedCorrectly = false;
 
-            const guessResult = new Array(currentLength).fill('absent');
-            const wordCopy = [...correctLetters];
+            currentWords.forEach((wordObj, wordIndex) => {
+                const board = document.getElementById(`gameBoard-${wordIndex}`);
+                const row = board.children[currentRow];
 
-            for (let i = 0; i < currentLength; i++) {
-                if (normalizeString(guessedLetters[i]) === normalizeString(wordCopy[i])) {
-                    guessResult[i] = 'correct';
-                    wordCopy[i] = null;
-                    guessedLetters[i] = null;
-                }
-            }
-
-            for (let i = 0; i < currentLength; i++) {
-                if (guessedLetters[i] !== null) {
-                    const normalizedLetter = normalizeString(guessedLetters[i]);
-                    const index = wordCopy.findIndex(char => char !== null && normalizeString(char) === normalizedLetter);
-                    if (index > -1) {
-                        guessResult[i] = 'present';
-                        wordCopy[index] = null;
+                if (!wordObj.solved) {
+                    // Preenche a linha com a palavra digitada
+                    for (let i = 0; i < wordLength; i++) {
+                        row.children[i].textContent = currentGuess[i];
                     }
                 }
-            }
-
-            for (let i = 0; i < currentLength; i++) {
-                const box = row.children[i];
-                box.classList.add(guessResult[i]);
-                const key = document.querySelector(`.key[data-key="${guess[i].toLowerCase()}"]`);
-                if (key) {
-                    if (guessResult[i] === 'correct') {
-                        key.classList.remove('present', 'absent');
-                        key.classList.add('correct');
-                    } else if (guessResult[i] === 'present' && !key.classList.contains('correct')) {
-                        key.classList.remove('absent');
-                        key.classList.add('present');
-                    } else if (guessResult[i] === 'absent' && !key.classList.contains('correct') && !key.classList.contains('present')) {
-                        key.classList.add('absent');
+                
+                if (wordObj.solved) {
+                    return;
+                }
+                
+                const correctLetters = Array.from(wordObj.word);
+                const guessedLetters = Array.from(currentGuess);
+                const guessResult = new Array(wordLength).fill('absent');
+                const wordCopy = [...correctLetters];
+                
+                for (let i = 0; i < wordLength; i++) {
+                    if (normalizeString(guessedLetters[i]) === normalizeString(wordCopy[i])) {
+                        guessResult[i] = 'correct';
+                        wordCopy[i] = null;
+                        guessedLetters[i] = null;
                     }
                 }
+                for (let i = 0; i < wordLength; i++) {
+                    if (guessedLetters[i] !== null) {
+                        const normalizedLetter = normalizeString(guessedLetters[i]);
+                        const index = wordCopy.findIndex(char => char !== null && normalizeString(char) === normalizedLetter);
+                        if (index > -1) {
+                            guessResult[i] = 'present';
+                            wordCopy[index] = null;
+                        }
+                    }
+                }
+                
+                let isWordSolved = true;
+                for (let i = 0; i < wordLength; i++) {
+                    const box = row.children[i];
+                    box.classList.add(guessResult[i]);
+                    if (guessResult[i] !== 'correct') {
+                        isWordSolved = false;
+                    }
+                }
+                
+                if (isWordSolved && !wordObj.solved) {
+                    wordObj.solved = true;
+                    solvedWords++;
+                    currentGuessedCorrectly = true;
+                }
+
+                if (!wordObj.solved) {
+                    allWordsSolved = false;
+                }
+            });
+
+            if (currentGuessedCorrectly) {
+                playSound(correctSound);
+                currentWords.forEach((wordObj, wordIndex) => {
+                    if (wordObj.solved) {
+                        const board = document.getElementById(`gameBoard-${wordIndex}`);
+                        updateBoardWithCorrectWord(board, wordObj.word);
+                    }
+                });
             }
             
-            if (normalizeString(guess) === normalizeString(currentWord)) {
-                messageDisplay.textContent = 'Você venceu!';
+            if (allWordsSolved) {
                 victoryCount++;
                 if (victoryCount > recordCount) {
                     recordCount = victoryCount;
                     recordCountDisplay.textContent = recordCount;
                 }
                 victoryCountDisplay.textContent = victoryCount;
+                
+                const timeTaken = new Date() - startTime;
+                showEndGameModal(`Você venceu!`, timeTaken, true);
                 disableGame();
-                updateBoardWithCorrectWord();
             } else if (currentRow === maxAttempts - 1) {
-                messageDisplay.textContent = `Você perdeu. A palavra era: ${currentWord}`;
+                playSound(defeatSound);
+                const timeTaken = new Date() - startTime;
+                showEndGameModal(`Você perdeu!`, timeTaken);
                 disableGame();
-                updateBoardWithCorrectWord();
-                victoryCount = 0; // Zera o contador de vitórias
+                victoryCount = 0;
                 victoryCountDisplay.textContent = victoryCount;
             } else {
                 currentRow++;
                 activeBox = null;
-                if (currentRow < maxAttempts) {
-                    focusBox(gameBoard.children[currentRow].children[0]);
+                const firstBox = document.querySelector('.box[data-row="' + currentRow + '"]');
+                if (firstBox) {
+                    focusBox(firstBox);
                 }
             }
         }
@@ -505,12 +636,52 @@
             }
         }
 
-        function updateBoardWithCorrectWord() {
-            const finalRow = gameBoard.children[currentRow];
-            const correctLetters = Array.from(currentWord);
-            for (let i = 0; i < currentLength; i++) {
-                finalRow.children[i].textContent = correctLetters[i];
+        function updateBoardWithCorrectWord(board, word) {
+            const row = board.children[currentRow];
+            if (row) {
+                for (let j = 0; j < wordLength; j++) {
+                    const box = row.children[j];
+                    box.textContent = word[j];
+                    box.classList.remove('present', 'absent');
+                    box.classList.add('correct');
+                }
             }
+        }
+
+        function getCurrentGuess() {
+            if (!activeBox) return null;
+            const wordIndex = parseInt(activeBox.dataset.wordIndex);
+            const board = document.getElementById(`gameBoard-${wordIndex}`);
+            const row = board.children[currentRow];
+            let guess = '';
+            for (let i = 0; i < wordLength; i++) {
+                const boxContent = row.children[i].textContent;
+                if (boxContent === '') {
+                    return null;
+                }
+                guess += boxContent;
+            }
+            return guess;
+        }
+
+        function showEndGameModal(message, timeTaken, isVictory = false) {
+            modalStatus.textContent = message;
+            
+            if (isVictory) {
+                 modalCorrectWords.textContent = `Parabéns! Você concluiu o desafio.`;
+            } else {
+                modalCorrectWords.textContent = 'As palavras eram: ' + currentWords.map(w => w.word).join(', ');
+            }
+            
+            modalVictories.textContent = victoryCount;
+            modalRecord.textContent = recordCount;
+
+            const seconds = Math.floor(timeTaken / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            modalTime.textContent = `${minutes}min ${remainingSeconds}s`;
+
+            endGameModal.style.display = 'flex';
         }
 
         const handleKeyDown = (event) => {
@@ -524,30 +695,39 @@
 
             const key = event.key.toUpperCase();
             const currentCol = parseInt(activeBox.dataset.col);
+            const wordIndex = parseInt(activeBox.dataset.wordIndex);
 
             if (key === 'ENTER') {
                 checkWord();
             } else if (key === 'BACKSPACE') {
-                if (activeBox && activeBox.textContent === '' && parseInt(activeBox.dataset.col) > 0) {
-                    focusBox(gameBoard.children[currentRow].children[parseInt(activeBox.dataset.col) - 1]);
+                if (activeBox) {
+                    activeBox.textContent = '';
+                    if (currentCol > 0) {
+                        const gameBoardDiv = document.getElementById(`gameBoard-${wordIndex}`);
+                        const prevBox = gameBoardDiv.children[currentRow].children[currentCol - 1];
+                        focusBox(prevBox);
+                    }
                 }
-                deleteLetter();
             } else if (key.match(/^[A-Z]$/)) {
                 addLetter(key);
             } else if (key === 'ARROWLEFT') {
                 if (currentCol > 0) {
-                    focusBox(gameBoard.children[currentRow].children[currentCol - 1]);
+                    const gameBoardDiv = document.getElementById(`gameBoard-${wordIndex}`);
+                    const prevBox = gameBoardDiv.children[currentRow].children[currentCol - 1];
+                    focusBox(prevBox);
                 }
             } else if (key === 'ARROWRIGHT') {
-                if (currentCol < currentLength - 1) {
-                    focusBox(gameBoard.children[currentRow].children[currentCol + 1]);
+                if (currentCol < wordLength - 1) {
+                    const gameBoardDiv = document.getElementById(`gameBoard-${wordIndex}`);
+                    const nextBox = gameBoardDiv.children[currentRow].children[currentCol + 1];
+                    focusBox(nextBox);
                 }
             }
         };
 
         document.removeEventListener('keydown', handleKeyDown);
         document.addEventListener('keydown', handleKeyDown);
+        loadWords();
     </script>
 </body>
-
 </html>
