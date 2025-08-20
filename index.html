@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Termo Duzamigos</title>
+    <title>Termo</title>
     <style>
         :root {
             --dark-bg: #1a1a1a;
@@ -156,6 +156,7 @@
         }
 
         .key {
+            position: relative;
             flex-grow: 1;
             height: 50px;
             background-color: var(--key-bg);
@@ -172,7 +173,33 @@
             color: var(--key-text);
             transition: background-color 0.2s;
         }
-        
+
+        .key-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .key-segments {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            border-radius: 5px;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .key-segment {
+            background-color: var(--key-bg);
+            border: none;
+        }
+
+        .key-segment.correct { background-color: var(--correct); }
+        .key-segment.present { background-color: var(--present); }
+        .key-segment.absent { background-color: var(--absent); }
+
         .key:hover {
             background-color: #9aa2a6;
         }
@@ -309,6 +336,7 @@
         let startTime;
         let isMuted = false;
         let solvedWords = 0;
+        let keyColorStates = {};
 
         const correctSound = new Audio('correct.mp3');
         const incorrectSound = new Audio('incorrect.mp3');
@@ -410,6 +438,7 @@
             currentRow = 0;
             activeBox = null;
             keyboardContainer.innerHTML = '';
+            keyColorStates = {};
             document.removeEventListener('keydown', handleKeyDown);
             document.addEventListener('keydown', handleKeyDown);
         }
@@ -452,13 +481,22 @@
         }
 
         function createKeyboard() {
-            const rows = [
-                ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-                ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-                ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL']
+            const keys = [
+                'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P',
+                'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L',
+                'ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL'
             ];
             
-            rows.forEach(rowKeys => {
+            keyboardContainer.innerHTML = '';
+            const numWords = parseInt(wordCountSelect.value);
+
+            const keyboardRows = [
+                keys.slice(0, 10),
+                keys.slice(10, 19),
+                keys.slice(19)
+            ];
+
+            keyboardRows.forEach(rowKeys => {
                 const rowDiv = document.createElement('div');
                 rowDiv.classList.add('key-row');
                 
@@ -468,9 +506,34 @@
                     if (keyText === 'ENTER' || keyText === 'DEL') {
                         key.classList.add('wide-key');
                     }
-                    key.textContent = keyText;
                     key.dataset.key = keyText.toLowerCase();
                     key.addEventListener('click', () => handleKeyClick(keyText));
+                    
+                    if (numWords > 1 && keyText.length === 1) {
+                        const segments = document.createElement('div');
+                        segments.classList.add('key-segments');
+
+                        const gridStyle = numWords === 4 ? `repeat(2, 1fr)` : `repeat(${numWords}, 1fr)`;
+                        segments.style.gridTemplateColumns = gridStyle;
+                        if (numWords === 4) {
+                             segments.style.gridTemplateRows = 'repeat(2, 1fr)';
+                        }
+                        
+                        for (let i = 0; i < numWords; i++) {
+                            const segment = document.createElement('div');
+                            segment.classList.add('key-segment');
+                            segment.dataset.segment = i;
+                            segments.appendChild(segment);
+                        }
+                        key.appendChild(segments);
+                        const keyTextSpan = document.createElement('span');
+                        keyTextSpan.classList.add('key-content');
+                        keyTextSpan.textContent = keyText;
+                        key.appendChild(keyTextSpan);
+                    } else {
+                        key.textContent = keyText;
+                    }
+
                     rowDiv.appendChild(key);
                 });
                 keyboardContainer.appendChild(rowDiv);
@@ -526,13 +589,14 @@
 
             let allWordsSolved = true;
             let currentGuessedCorrectly = false;
+            let keyboardColorUpdates = {};
+            const numWords = currentWords.length;
 
             currentWords.forEach((wordObj, wordIndex) => {
                 const board = document.getElementById(`gameBoard-${wordIndex}`);
                 const row = board.children[currentRow];
 
                 if (!wordObj.solved) {
-                    // Preenche a linha com a palavra digitada
                     for (let i = 0; i < wordLength; i++) {
                         row.children[i].textContent = currentGuess[i];
                     }
@@ -572,6 +636,16 @@
                     if (guessResult[i] !== 'correct') {
                         isWordSolved = false;
                     }
+                    
+                    const letter = currentGuess[i];
+                    if (!keyboardColorUpdates[letter]) {
+                        keyboardColorUpdates[letter] = new Array(numWords).fill('absent');
+                    }
+                    if (guessResult[i] === 'correct') {
+                        keyboardColorUpdates[letter][wordIndex] = 'correct';
+                    } else if (guessResult[i] === 'present' && keyboardColorUpdates[letter][wordIndex] !== 'correct') {
+                        keyboardColorUpdates[letter][wordIndex] = 'present';
+                    }
                 }
                 
                 if (isWordSolved && !wordObj.solved) {
@@ -584,6 +658,39 @@
                     allWordsSolved = false;
                 }
             });
+
+            for (const letter in keyboardColorUpdates) {
+                const key = document.querySelector(`.key[data-key="${letter.toLowerCase()}"]`);
+                if (key) {
+                    if (numWords > 1) {
+                         const segments = key.querySelectorAll('.key-segment');
+                         keyboardColorUpdates[letter].forEach((result, index) => {
+                             const segment = segments[index];
+                             if (result === 'correct') {
+                                 segment.classList.remove('present', 'absent');
+                                 segment.classList.add('correct');
+                             } else if (result === 'present' && !segment.classList.contains('correct')) {
+                                 segment.classList.remove('absent');
+                                 segment.classList.add('present');
+                             } else if (!segment.classList.contains('correct') && !segment.classList.contains('present')) {
+                                 segment.classList.add('absent');
+                             }
+                         });
+                    } else {
+                        const result = keyboardColorUpdates[letter][0];
+                        if (result === 'correct') {
+                            key.classList.remove('present', 'absent');
+                            key.classList.add('correct');
+                        } else if (result === 'present' && !key.classList.contains('correct')) {
+                            key.classList.remove('absent');
+                            key.classList.add('present');
+                        } else if (key.classList.contains('correct') === false && key.classList.contains('present') === false) {
+                            key.classList.add('absent');
+                        }
+                    }
+                }
+            }
+
 
             if (currentGuessedCorrectly) {
                 playSound(correctSound);
@@ -621,6 +728,20 @@
                     focusBox(firstBox);
                 }
             }
+        }
+        
+        function getResultForLetter(wordObj, letter, index) {
+            const correctLetters = Array.from(wordObj.word);
+            const normalizedCorrect = normalizeString(correctLetters[index]);
+            const normalizedGuessed = normalizeString(letter);
+            
+            if (normalizedCorrect === normalizedGuessed) {
+                return 'correct';
+            }
+            if (normalizeString(wordObj.word).includes(normalizedGuessed)) {
+                return 'present';
+            }
+            return 'absent';
         }
 
         function isWordValid(word) {
