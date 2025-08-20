@@ -298,7 +298,7 @@
     </div>
 
     <div class="options">
-        <label for="wordCountSelect">Escolha a quantidade de termos:</label>
+        <label for="wordCountSelect">Dificuldade:</label>
         <select id="wordCountSelect">
             <option value="1">1 termo</option>
             <option value="2">2 termos</option>
@@ -404,6 +404,8 @@
                 wordDatabase = filtered.map(word => word.toUpperCase());
                 normalizedWordDatabase = wordDatabase.map(word => normalizeString(word));
                 messageDisplay.textContent = '';
+                
+                loadGameData();
                 startGame();
             } catch (error) {
                 messageDisplay.textContent = 'Erro: ' + error.message;
@@ -411,6 +413,25 @@
             }
         }
         
+        function saveGameData() {
+            const data = {
+                victoryCount: victoryCount,
+                recordCount: recordCount
+            };
+            localStorage.setItem('termoGameData', JSON.stringify(data));
+        }
+
+        function loadGameData() {
+            const data = localStorage.getItem('termoGameData');
+            if (data) {
+                const savedData = JSON.parse(data);
+                victoryCount = savedData.victoryCount;
+                recordCount = savedData.recordCount;
+                victoryCountDisplay.textContent = victoryCount;
+                recordCountDisplay.textContent = recordCount;
+            }
+        }
+
         function startGame() {
             currentWords = [];
             solvedWords = 0;
@@ -713,6 +734,7 @@
                     recordCountDisplay.textContent = recordCount;
                 }
                 victoryCountDisplay.textContent = victoryCount;
+                saveGameData();
                 
                 const timeTaken = new Date() - startTime;
                 showEndGameModal(`Você venceu!`, timeTaken, true);
@@ -724,6 +746,7 @@
                 disableGame();
                 victoryCount = 0;
                 victoryCountDisplay.textContent = victoryCount;
+                saveGameData();
             } else {
                 currentRow++;
                 activeBox = null;
