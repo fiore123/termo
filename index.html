@@ -95,6 +95,7 @@
             flex-direction: column;
             gap: 8px;
             min-width: 300px;
+            border-radius: 5px;
         }
 
         .row {
@@ -117,6 +118,7 @@
             cursor: pointer;
             box-sizing: border-box;
             transition: background-color 0.3s, border-color 0.3s;
+            border-radius: 5px;
         }
         
         .box.active {
@@ -296,7 +298,7 @@
     </div>
 
     <div class="options">
-        <label for="wordCountSelect">Dificuldade:</label>
+        <label for="wordCountSelect">Escolha a quantidade de termos:</label>
         <select id="wordCountSelect">
             <option value="1">1 termo</option>
             <option value="2">2 termos</option>
@@ -512,11 +514,13 @@
                     if (numWords > 1 && keyText.length === 1) {
                         const segments = document.createElement('div');
                         segments.classList.add('key-segments');
-
-                        const gridStyle = numWords === 4 ? `repeat(2, 1fr)` : `repeat(${numWords}, 1fr)`;
-                        segments.style.gridTemplateColumns = gridStyle;
-                        if (numWords === 4) {
-                             segments.style.gridTemplateRows = 'repeat(2, 1fr)';
+                        
+                        if (numWords === 2 || numWords === 3) {
+                            segments.style.gridTemplateColumns = `repeat(${numWords}, 1fr)`;
+                            segments.style.gridTemplateRows = '1fr';
+                        } else if (numWords === 4) {
+                            segments.style.gridTemplateColumns = 'repeat(2, 1fr)';
+                            segments.style.gridTemplateRows = 'repeat(2, 1fr)';
                         }
                         
                         for (let i = 0; i < numWords; i++) {
