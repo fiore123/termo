@@ -18,7 +18,7 @@
         }
 
         body {
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Arial', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -437,7 +437,6 @@
             solvedWords = 0;
             const numWords = parseInt(wordCountSelect.value);
             
-            // Define o número de tentativas com base na quantidade de termos
             switch(numWords) {
                 case 1:
                     maxAttempts = 6;
@@ -556,7 +555,6 @@
                         
                         if (numWords === 2 || numWords === 3) {
                             segments.style.gridTemplateColumns = `repeat(${numWords}, 1fr)`;
-                            segments.style.gridTemplateRows = '1fr';
                         } else if (numWords === 4) {
                             segments.style.gridTemplateColumns = 'repeat(2, 1fr)';
                             segments.style.gridTemplateRows = 'repeat(2, 1fr)';
@@ -897,4 +895,3 @@
     </script>
 </body>
 </html>
-
