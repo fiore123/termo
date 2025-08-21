@@ -286,6 +286,43 @@
         .mute-button:hover {
             color: white;
         }
+        
+        .custom-select-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .custom-select {
+            display: flex;
+            align-items: center;
+            background-color: var(--box-border);
+            border-radius: 5px;
+            position: relative;
+        }
+
+        .custom-select::after {
+            content: '▼';
+            font-size: 0.8em;
+            color: var(--text-color);
+            padding: 0 8px;
+            pointer-events: none;
+        }
+        
+        #wordCountSelect {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-color: transparent;
+            border: none;
+            color: var(--text-color);
+            padding: 8px 15px;
+            font-size: 1em;
+            cursor: pointer;
+            outline: none;
+            width: 100%;
+            height: 100%;
+        }
+
     </style>
 </head>
 <body>
@@ -299,12 +336,14 @@
 
     <div class="options">
         <label for="wordCountSelect">Dificuldade:</label>
-        <select id="wordCountSelect">
-            <option value="1">1 termo</option>
-            <option value="2">2 termos</option>
-            <option value="3">3 termos</option>
-            <option value="4">4 termos</option>
-        </select>
+        <div class="custom-select-wrapper">
+            <select id="wordCountSelect">
+                <option value="1">1 termo</option>
+                <option value="2">2 termos</option>
+                <option value="3">3 termos</option>
+                <option value="4">4 termos</option>
+            </select>
+        </div>
         <button id="startButton" class="start-button">Começar</button>
     </div>
     
