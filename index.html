@@ -18,7 +18,7 @@
         }
 
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Poppins', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -298,7 +298,7 @@
     </div>
 
     <div class="options">
-        <label for="wordCountSelect">Dificuldade:</label>
+        <label for="wordCountSelect">Escolha a quantidade de termos:</label>
         <select id="wordCountSelect">
             <option value="1">1 termo</option>
             <option value="2">2 termos</option>
@@ -331,7 +331,7 @@
         let currentWords = [];
         const wordLength = 5;
         let currentRow = 0;
-        const maxAttempts = 6;
+        let maxAttempts;
         let victoryCount = 0;
         let recordCount = 0;
         let normalizedWordDatabase = [];
@@ -437,6 +437,24 @@
             solvedWords = 0;
             const numWords = parseInt(wordCountSelect.value);
             
+            // Define o número de tentativas com base na quantidade de termos
+            switch(numWords) {
+                case 1:
+                    maxAttempts = 6;
+                    break;
+                case 2:
+                    maxAttempts = 7;
+                    break;
+                case 3:
+                    maxAttempts = 8;
+                    break;
+                case 4:
+                    maxAttempts = 9;
+                    break;
+                default:
+                    maxAttempts = 6;
+            }
+
             const shuffledWords = wordDatabase.sort(() => 0.5 - Math.random());
             for (let i = 0; i < numWords; i++) {
                 currentWords.push({
