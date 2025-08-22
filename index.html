@@ -19,14 +19,8 @@
             --present: #c9b458;
             --absent: #3a3a3c;
             --animation-duration: 0.3s;
-
-            /* Light Theme Variables */
-            --light-bg: #f8f8f8;
-            --light-main-bg: #ffffff;
-            --light-box-border: #d3d6da;
-            --light-text-color: #212121;
         }
-        
+
         body {
             font-family: 'Poppins', 'Arial', sans-serif;
             display: flex;
@@ -37,52 +31,6 @@
             margin: 0;
             padding: 20px;
             min-height: 100vh;
-        }
-
-        body.light-theme {
-            background-color: var(--light-bg);
-            color: var(--light-text-color);
-        }
-
-        body.light-theme h1 {
-            color: var(--light-text-color);
-            text-shadow: none;
-        }
-
-        body.light-theme .custom-select-wrapper::after {
-            color: var(--light-text-color);
-        }
-
-        body.light-theme #wordCountSelect {
-            color: var(--light-text-color);
-        }
-
-        body.light-theme .game-stats button,
-        body.light-theme #statsCloseButton,
-        body.light-theme #modalNewGameButton,
-        body.light-theme .key {
-            background-color: var(--light-box-border);
-            color: var(--light-text-color);
-        }
-
-        body.light-theme .key:hover {
-            background-color: #c0c2c4;
-        }
-
-        body.light-theme .box {
-            background-color: var(--light-main-bg);
-            border-color: var(--light-box-border);
-            color: var(--light-text-color);
-        }
-
-        body.light-theme .box.active {
-            border-color: var(--dark-bg);
-        }
-
-        body.light-theme .modal-content,
-        body.light-theme .hint-modal-content {
-            background-color: var(--light-main-bg);
-            color: var(--light-text-color);
         }
 
         h1 {
@@ -540,24 +488,16 @@
             margin: 0;
             font-weight: 600;
         }
-        
     </style>
 </head>
 <body>
     <h1>Termo Duzamigos</h1>
 
-    <div class="header">
-        <div class="header-left">
-            <button id="statsButton" title="Estatísticas">📈</button>
-            <button id="restartButton" title="Reiniciar Jogo">&#x21BB;</button>
-        </div>
-        <div class="header-right">
-            <button id="hintButton" title="Pedir Dica" style="font-size: 1.2em; padding: 8px 12px; position: relative;">
-                💡
-                <span id="hintCount" style="position: absolute; bottom: -5px; right: -5px; font-size: 0.6em; background: red; border-radius: 50%; width: 15px; height: 15px; display: flex; justify-content: center; align-items: center; color: white; font-weight: 600;"></span>
-            </button>
-            <button class="mute-button" id="muteButton">🔊</button>
-        </div>
+    <div class="game-stats">
+        <span>🏆 <span id="victoryCount">0</span></span>
+        <span>✨ <span id="recordCount">0</span></span>
+        <button id="restartButton" title="Reiniciar Jogo">&#x21BB;</button>
+        <button id="hintButton" title="Pedir Dica" style="font-size: 1.2em; padding: 8px 12px;">💡</button>
     </div>
 
     <div class="options">
@@ -571,7 +511,6 @@
             </select>
         </div>
         <button id="startButton" class="start-button">Começar</button>
-        <button id="dailyButton" class="start-button">Diário</button>
     </div>
     
     <div id="gameContainer"></div>
@@ -590,29 +529,6 @@
         </div>
     </div>
     
-    <div id="statsModal" class="modal-overlay">
-        <div class="modal-content">
-            <h2>Estatísticas</h2>
-            <div class="stats-grid">
-                <div class="stats-item">
-                    <span id="statsPlayed" class="value">0</span>
-                    <span>Jogados</span>
-                </div>
-                <div class="stats-item">
-                    <span id="statsWinRate" class="value">0%</span>
-                    <span>Vitórias</span>
-                </div>
-                <div class="stats-item">
-                    <span id="statsWinStreak" class="value">0</span>
-                    <span>Sequência</span>
-                </div>
-            </div>
-            <h3 style="margin-top: 20px;">Distribuição de Palpites</h3>
-            <div id="guessDistributionChart" class="stats-chart-container"></div>
-            <button id="statsCloseButton" class="start-button" style="margin-top: 20px;">Fechar</button>
-        </div>
-    </div>
-    
     <div id="hintModal" class="hint-modal-overlay">
         <div class="hint-modal-content">
             <h3>Deseja mesmo uma dica?</h3>
@@ -621,6 +537,8 @@
             <button id="cancelHintButton" class="start-button">Não</button>
         </div>
     </div>
+
+    <button class="mute-button" id="muteButton">🔊</button>
 
     <script>
         const TermoGame = {
@@ -683,8 +601,8 @@
 
             init: function() {
                 this.bindEvents();
-                this.loadStats();
                 this.loadGameData();
+                this.loadStats();
                 this.loadWords();
             },
 
@@ -1134,7 +1052,7 @@
                 });
                 
                 Promise.all(promises).then(() => {
-                    this.updateKeyboardColors();
+                    this.updateKeyboardColors(currentGuess);
 
                     if (currentGuessedCorrectly) {
                         this.playSound(this.sounds.correct);
