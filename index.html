@@ -277,11 +277,59 @@
             font-size: 1.1em;
             font-weight: 400;
         }
+        
+        .stats-chart-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .stats-chart-bar {
+            background-color: var(--absent);
+            height: 20px;
+            border-radius: 3px;
+            margin: 3px 0;
+            display: flex;
+            align-items: center;
+            transition: width 0.5s ease-in-out;
+        }
+
+        .stats-chart-bar .label {
+            font-weight: 600;
+            font-size: 0.9em;
+            padding: 0 5px;
+        }
+        
+        .stats-chart-bar .value {
+            font-weight: 600;
+            font-size: 0.9em;
+            padding: 0 5px;
+            color: var(--text-color);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .stats-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+
+        .stats-item .value {
+            font-size: 1.5em;
+            color: white;
+        }
 
         .mute-button {
-            position: absolute;
-            top: 20px;
-            right: 20px;
             background-color: transparent;
             border: none;
             cursor: pointer;
@@ -424,19 +472,23 @@
                 wordLength: 5,
                 currentRow: 0,
                 maxAttempts: 6,
-                victoryCount: 0,
-                recordCount: 0,
-                normalizedWordDatabase: [],
-                startTime: null,
-                isMuted: false,
-                solvedWords: 0,
+                isDailyGame: false,
+                hintsAvailable: 3,
                 keyColorStates: {},
+                gameStats: {
+                    played: 0,
+                    wins: 0,
+                    currentWinStreak: 0,
+                    maxWinStreak: 0,
+                    guessDistribution: {}
+                }
             },
 
             elements: {
                 gameContainer: document.getElementById('gameContainer'),
                 messageDisplay: document.getElementById('message'),
                 startButton: document.getElementById('startButton'),
+                dailyButton: document.getElementById('dailyButton'),
                 wordCountSelect: document.getElementById('wordCountSelect'),
                 keyboardContainer: document.getElementById('keyboard'),
                 victoryCountDisplay: document.getElementById('victoryCount'),
@@ -452,9 +504,17 @@
                 modalNewGameButton: document.getElementById('modalNewGameButton'),
                 muteButton: document.getElementById('muteButton'),
                 hintButton: document.getElementById('hintButton'),
+                hintCountDisplay: document.getElementById('hintCount'),
                 hintModal: document.getElementById('hintModal'),
                 confirmHintButton: document.getElementById('confirmHintButton'),
                 cancelHintButton: document.getElementById('cancelHintButton'),
+                statsButton: document.getElementById('statsButton'),
+                statsModal: document.getElementById('statsModal'),
+                statsCloseButton: document.getElementById('statsCloseButton'),
+                statsPlayed: document.getElementById('statsPlayed'),
+                statsWinRate: document.getElementById('statsWinRate'),
+                statsWinStreak: document.getElementById('statsWinStreak'),
+                guessDistributionChart: document.getElementById('guessDistributionChart'),
             },
 
             sounds: {
@@ -466,20 +526,36 @@
             init: function() {
                 this.bindEvents();
                 this.loadGameData();
+                this.loadStats();
                 this.loadWords();
             },
 
             bindEvents: function() {
-                this.elements.startButton.addEventListener('click', this.loadWords.bind(this));
-                this.elements.restartButton.addEventListener('click', this.startGame.bind(this));
+                this.elements.startButton.addEventListener('click', () => {
+                    this.state.isDailyGame = false;
+                    this.startGame();
+                });
+                this.elements.dailyButton.addEventListener('click', () => {
+                    this.state.isDailyGame = true;
+                    this.startGame();
+                });
+                this.elements.restartButton.addEventListener('click', () => {
+                    if (this.state.isDailyGame) {
+                        this.showTemporaryMessage("Não é possível reiniciar o jogo diário.");
+                    } else {
+                        this.startGame();
+                    }
+                });
                 this.elements.modalNewGameButton.addEventListener('click', () => {
                     this.elements.endGameModal.style.display = 'none';
                     this.startGame();
                 });
                 this.elements.muteButton.addEventListener('click', this.toggleMute.bind(this));
-                this.elements.hintButton.addEventListener('click', this.showHintModal.bind(this));
+                this.elements.hintButton.addEventListener('click', this.handleHintRequest.bind(this));
                 this.elements.confirmHintButton.addEventListener('click', this.revealHint.bind(this));
                 this.elements.cancelHintButton.addEventListener('click', () => this.elements.hintModal.style.display = 'none');
+                this.elements.statsButton.addEventListener('click', this.showStatsModal.bind(this));
+                this.elements.statsCloseButton.addEventListener('click', () => this.elements.statsModal.style.display = 'none');
                 document.addEventListener('keydown', this.handleKeyDown.bind(this));
             },
 
@@ -521,11 +597,10 @@
             },
             
             saveGameData: function() {
-                const data = {
+                localStorage.setItem('termoGameData', JSON.stringify({
                     victoryCount: this.state.victoryCount,
                     recordCount: this.state.recordCount,
-                };
-                localStorage.setItem('termoGameData', JSON.stringify(data));
+                }));
             },
 
             loadGameData: function() {
@@ -534,14 +609,61 @@
                     const savedData = JSON.parse(data);
                     this.state.victoryCount = savedData.victoryCount;
                     this.state.recordCount = savedData.recordCount;
-                    this.elements.victoryCountDisplay.textContent = this.state.victoryCount;
-                    this.elements.recordCountDisplay.textContent = this.state.recordCount;
                 }
+                this.updateStatsDisplay();
+            },
+
+            loadStats: function() {
+                const stats = localStorage.getItem('termoGameStats');
+                if (stats) {
+                    this.state.gameStats = JSON.parse(stats);
+                }
+            },
+
+            saveStats: function() {
+                localStorage.setItem('termoGameStats', JSON.stringify(this.state.gameStats));
+            },
+
+            updateStatsDisplay: function() {
+                this.elements.statsPlayed.textContent = this.state.gameStats.played;
+                this.elements.statsWinRate.textContent = `${this.state.gameStats.played > 0 ? Math.round((this.state.gameStats.wins / this.state.gameStats.played) * 100) : 0}%`;
+                this.elements.statsWinStreak.textContent = this.state.gameStats.maxWinStreak;
+                this.elements.victoryCountDisplay.textContent = this.state.victoryCount;
+                this.elements.recordCountDisplay.textContent = this.state.recordCount;
+                this.buildGuessDistributionChart();
+            },
+
+            buildGuessDistributionChart: function() {
+                this.elements.guessDistributionChart.innerHTML = '';
+                const attempts = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+                const maxCount = Math.max(...Object.values(this.state.gameStats.guessDistribution));
+
+                attempts.forEach(attempt => {
+                    if (attempt > this.state.maxAttempts) return;
+                    const count = this.state.gameStats.guessDistribution[attempt] || 0;
+                    const bar = document.createElement('div');
+                    bar.classList.add('stats-chart-bar');
+                    bar.style.width = maxCount > 0 ? `${(count / maxCount) * 100}%` : '0%';
+                    
+                    const label = document.createElement('span');
+                    label.classList.add('label');
+                    label.textContent = attempt;
+                    bar.appendChild(label);
+                    
+                    const value = document.createElement('span');
+                    value.classList.add('value');
+                    value.textContent = count;
+                    bar.appendChild(value);
+                    
+                    this.elements.guessDistributionChart.appendChild(bar);
+                });
             },
 
             startGame: function() {
                 this.state.currentWords = [];
                 this.state.solvedWords = 0;
+                this.state.hintsAvailable = 3;
+                this.updateHintCount();
                 const numWords = parseInt(this.elements.wordCountSelect.value);
 
                 switch (numWords) {
@@ -560,11 +682,22 @@
                     default:
                         this.state.maxAttempts = 6;
                 }
+                
+                let wordsToUse;
+                if (this.state.isDailyGame) {
+                    const today = new Date().toISOString().slice(0, 10);
+                    const seed = this.stringToSeed(today);
+                    const random = this.seededRandom(seed);
+                    const shuffledWords = this.state.wordDatabase.sort(() => random() - 0.5);
+                    wordsToUse = shuffledWords.slice(0, numWords);
+                } else {
+                    const shuffledWords = this.state.wordDatabase.sort(() => 0.5 - Math.random());
+                    wordsToUse = shuffledWords.slice(0, numWords);
+                }
 
-                const shuffledWords = this.state.wordDatabase.sort(() => 0.5 - Math.random());
                 for (let i = 0; i < numWords; i++) {
                     this.state.currentWords.push({
-                        word: shuffledWords[i],
+                        word: wordsToUse[i],
                         solved: false,
                     });
                 }
@@ -572,10 +705,27 @@
                 this.resetGame();
                 this.createGameBoards();
                 this.createKeyboard();
-                if (document.querySelector('.box')) {
-                    this.focusBox(document.querySelector('.box'));
+                if (document.querySelector('.box-front')) {
+                    this.focusBox(document.querySelector('.box-front'));
                 }
                 this.state.startTime = new Date();
+            },
+
+            stringToSeed: function(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash |= 0;
+                }
+                return hash;
+            },
+
+            seededRandom: function(seed) {
+                return function() {
+                    seed = (seed * 9301 + 49297) % 233280;
+                    return seed / 233280;
+                };
             },
 
             resetGame: function() {
@@ -600,14 +750,27 @@
                         const row = document.createElement('div');
                         row.classList.add('row');
                         for (let j = 0; j < this.state.wordLength; j++) {
-                            const box = document.createElement('div');
-                            box.classList.add('box');
-                            box.dataset.row = i;
-                            box.dataset.col = j;
-                            box.dataset.wordIndex = wordIndex;
-                            box.tabIndex = 0;
-                            box.addEventListener('click', () => this.focusBox(box));
-                            row.appendChild(box);
+                            const boxContainer = document.createElement('div');
+                            boxContainer.classList.add('box-container');
+                            
+                            const boxFront = document.createElement('div');
+                            boxFront.classList.add('box', 'box-front');
+                            boxFront.dataset.row = i;
+                            boxFront.dataset.col = j;
+                            boxFront.dataset.wordIndex = wordIndex;
+                            boxFront.tabIndex = 0;
+                            boxFront.addEventListener('click', () => this.focusBox(boxFront));
+                            
+                            const boxBack = document.createElement('div');
+                            boxBack.classList.add('box', 'box-back');
+                            boxBack.dataset.row = i;
+                            boxBack.dataset.col = j;
+                            boxBack.dataset.wordIndex = wordIndex;
+
+                            boxContainer.appendChild(boxFront);
+                            boxContainer.appendChild(boxBack);
+                            
+                            row.appendChild(boxContainer);
                         }
                         gameBoardDiv.appendChild(row);
                     }
@@ -707,7 +870,7 @@
                     if (nextCol < this.state.wordLength) {
                         const wordIndex = parseInt(this.state.activeBox.dataset.wordIndex);
                         const gameBoardDiv = document.getElementById(`gameBoard-${wordIndex}`);
-                        const nextBox = gameBoardDiv.children[this.state.currentRow].children[nextCol];
+                        const nextBox = gameBoardDiv.children[this.state.currentRow].children[nextCol].querySelector('.box-front');
                         this.focusBox(nextBox);
                     }
                 }
@@ -734,22 +897,15 @@
 
                 let allWordsSolved = true;
                 let currentGuessedCorrectly = false;
-                let keyboardColorUpdates = {};
+                this.state.keyColorStates = {};
                 const numWords = this.state.currentWords.length;
+                let promises = [];
 
                 this.state.currentWords.forEach((wordObj, wordIndex) => {
+                    if (wordObj.solved) return;
+                    
                     const board = document.getElementById(`gameBoard-${wordIndex}`);
                     const row = board.children[this.state.currentRow];
-
-                    if (!wordObj.solved) {
-                        for (let i = 0; i < this.state.wordLength; i++) {
-                            row.children[i].textContent = currentGuess[i];
-                        }
-                    }
-                    
-                    if (wordObj.solved) {
-                        return;
-                    }
                     
                     const correctLetters = Array.from(wordObj.word);
                     const guessedLetters = Array.from(currentGuess);
@@ -775,108 +931,119 @@
                     }
                     
                     let isWordSolved = true;
-                    for (let i = 0; i < this.state.wordLength; i++) {
-                        const box = row.children[i];
-                        box.classList.add(guessResult[i]);
-                        if (guessResult[i] !== 'correct') {
-                            isWordSolved = false;
-                        }
-                        
-                        const letter = currentGuess[i];
-                        if (!keyboardColorUpdates[letter]) {
-                            keyboardColorUpdates[letter] = new Array(numWords).fill('absent');
-                        }
-                        if (guessResult[i] === 'correct') {
-                            keyboardColorUpdates[letter][wordIndex] = 'correct';
-                        } else if (guessResult[i] === 'present' && keyboardColorUpdates[letter][wordIndex] !== 'correct') {
-                            keyboardColorUpdates[letter][wordIndex] = 'present';
-                        }
-                    }
+                    
+                    const animationPromise = new Promise(resolve => {
+                        row.querySelectorAll('.box-container').forEach((container, i) => {
+                            setTimeout(() => {
+                                const front = container.querySelector('.box-front');
+                                const back = container.querySelector('.box-back');
+                                
+                                front.textContent = currentGuess[i];
+                                back.textContent = currentGuess[i];
+                                back.classList.add(guessResult[i]);
+                                container.classList.add('flip');
+
+                                if (guessResult[i] !== 'correct') {
+                                    isWordSolved = false;
+                                }
+
+                                const letter = currentGuess[i];
+                                if (!this.state.keyColorStates[letter]) {
+                                    this.state.keyColorStates[letter] = new Array(numWords).fill('absent');
+                                }
+                                if (guessResult[i] === 'correct') {
+                                    this.state.keyColorStates[letter][wordIndex] = 'correct';
+                                } else if (guessResult[i] === 'present' && this.state.keyColorStates[letter][wordIndex] !== 'correct') {
+                                    this.state.keyColorStates[letter][wordIndex] = 'present';
+                                }
+
+                                if (i === this.state.wordLength - 1) {
+                                    resolve();
+                                }
+                            }, i * 350);
+                        });
+                    });
+                    promises.push(animationPromise);
                     
                     if (isWordSolved && !wordObj.solved) {
                         wordObj.solved = true;
                         this.state.solvedWords++;
                         currentGuessedCorrectly = true;
                     }
-
                     if (!wordObj.solved) {
                         allWordsSolved = false;
                     }
                 });
-
-                for (const letter in keyboardColorUpdates) {
-                    const key = document.querySelector(`.key[data-key="${letter.toLowerCase()}"]`);
-                    if (key) {
-                        if (numWords > 1) {
-                             const segments = key.querySelectorAll('.key-segment');
-                             keyboardColorUpdates[letter].forEach((result, index) => {
-                                 const segment = segments[index];
-                                 if (result === 'correct') {
-                                     segment.classList.remove('present', 'absent');
-                                     segment.classList.add('correct');
-                                 } else if (result === 'present' && !segment.classList.contains('correct')) {
-                                     segment.classList.remove('absent');
-                                     segment.classList.add('present');
-                                 } else if (!segment.classList.contains('correct') && !segment.classList.contains('present')) {
-                                     segment.classList.add('absent');
-                                 }
-                             });
-                        } else {
-                            const result = keyboardColorUpdates[letter][0];
-                            if (result === 'correct') {
-                                key.classList.remove('present', 'absent');
-                                key.classList.add('correct');
-                            } else if (result === 'present' && !key.classList.contains('correct')) {
-                                key.classList.remove('absent');
-                                key.classList.add('present');
-                            } else if (key.classList.contains('correct') === false && key.classList.contains('present') === false) {
-                                key.classList.add('absent');
-                            }
-                        }
-                    }
-                }
-
-                if (currentGuessedCorrectly) {
-                    this.playSound(this.sounds.correct);
-                    this.state.currentWords.forEach((wordObj, wordIndex) => {
-                        if (wordObj.solved) {
-                            const board = document.getElementById(`gameBoard-${wordIndex}`);
-                            this.updateBoardWithCorrectWord(board, wordObj.word);
-                        }
-                    });
-                }
                 
-                if (allWordsSolved) {
-                    this.state.victoryCount++;
-                    if (this.state.victoryCount > this.state.recordCount) {
-                        this.state.recordCount = this.state.victoryCount;
-                        this.elements.recordCountDisplay.textContent = this.state.recordCount;
+                Promise.all(promises).then(() => {
+                    this.updateKeyboardColors();
+
+                    if (currentGuessedCorrectly) {
+                        this.playSound(this.sounds.correct);
+                        this.state.currentWords.forEach((wordObj, wordIndex) => {
+                            if (wordObj.solved) {
+                                const board = document.getElementById(`gameBoard-${wordIndex}`);
+                                this.updateBoardWithCorrectWord(board, wordObj.word);
+                            }
+                        });
                     }
-                    this.elements.victoryCountDisplay.textContent = this.state.victoryCount;
-                    this.saveGameData();
-                    localStorage.removeItem('termoGameState');
                     
-                    const timeTaken = new Date() - this.state.startTime;
-                    this.showEndGameModal(`Você venceu!`, timeTaken, true);
-                    this.disableGame();
-                } else if (this.state.currentRow === this.state.maxAttempts - 1) {
-                    this.playSound(this.sounds.defeat);
-                    const timeTaken = new Date() - this.state.startTime;
-                    this.showEndGameModal(`Você perdeu!`, timeTaken);
-                    this.disableGame();
-                    this.state.victoryCount = 0;
-                    this.elements.victoryCountDisplay.textContent = this.state.victoryCount;
-                    this.saveGameData();
-                    localStorage.removeItem('termoGameState');
-                } else {
-                    this.state.currentRow++;
-                    this.state.activeBox = null;
-                    const firstBox = document.querySelector(`.box[data-row="${this.state.currentRow}"]`);
-                    if (firstBox) {
-                        this.focusBox(firstBox);
+                    if (allWordsSolved) {
+                        this.state.gameStats.played++;
+                        this.state.gameStats.wins++;
+                        this.state.gameStats.currentWinStreak++;
+                        if (this.state.gameStats.currentWinStreak > this.state.gameStats.maxWinStreak) {
+                            this.state.gameStats.maxWinStreak = this.state.gameStats.currentWinStreak;
+                        }
+                        const attempts = this.state.currentRow + 1;
+                        this.state.gameStats.guessDistribution[attempts] = (this.state.gameStats.guessDistribution[attempts] || 0) + 1;
+                        this.saveStats();
+                        
+                        const timeTaken = new Date() - this.state.startTime;
+                        this.showEndGameModal(`Você venceu!`, timeTaken, true);
+                        this.disableGame();
+                    } else if (this.state.currentRow === this.state.maxAttempts - 1) {
+                        this.playSound(this.sounds.defeat);
+                        this.state.gameStats.played++;
+                        this.state.gameStats.currentWinStreak = 0;
+                        this.saveStats();
+                        
+                        const timeTaken = new Date() - this.state.startTime;
+                        this.showEndGameModal(`Você perdeu!`, timeTaken);
+                        this.disableGame();
+                    } else {
+                        this.state.currentRow++;
+                        this.state.activeBox = null;
+                        const firstBox = document.querySelector(`.box-front[data-row="${this.state.currentRow}"]`);
+                        if (firstBox) {
+                            this.focusBox(firstBox);
+                        }
                     }
-                    this.saveGameState();
-                }
+                });
+            },
+
+            updateKeyboardColors: function() {
+                const numWords = this.state.currentWords.length;
+                const allKeys = document.querySelectorAll('.key');
+
+                allKeys.forEach(key => {
+                    const keyText = key.dataset.key.toUpperCase();
+                    if (this.state.keyColorStates[keyText]) {
+                        const segments = key.querySelectorAll('.key-segment');
+                        this.state.keyColorStates[keyText].forEach((result, index) => {
+                             const segment = segments[index];
+                             if (result === 'correct') {
+                                 segment.classList.remove('present', 'absent');
+                                 segment.classList.add('correct');
+                             } else if (result === 'present' && !segment.classList.contains('correct')) {
+                                 segment.classList.remove('absent');
+                                 segment.classList.add('present');
+                             } else if (!segment.classList.contains('correct') && !segment.classList.contains('present')) {
+                                 segment.classList.add('absent');
+                             }
+                         });
+                    }
+                });
             },
 
             isWordValid: function(word) {
@@ -893,15 +1060,16 @@
             },
 
             updateBoardWithCorrectWord: function(board, word) {
-                const row = board.children[this.state.currentRow];
-                if (row) {
-                    for (let j = 0; j < this.state.wordLength; j++) {
-                        const box = row.children[j];
-                        box.textContent = word[j];
-                        box.classList.remove('present', 'absent');
-                        box.classList.add('correct');
-                    }
-                }
+                const finalRow = board.children[this.state.currentRow];
+                finalRow.querySelectorAll('.box-front').forEach((box, i) => {
+                    box.textContent = word[i];
+                });
+
+                finalRow.querySelectorAll('.box-back').forEach((box, i) => {
+                    box.textContent = word[i];
+                    box.classList.remove('present', 'absent');
+                    box.classList.add('correct');
+                });
             },
 
             getCurrentGuess: function() {
@@ -911,7 +1079,7 @@
                 const row = board.children[this.state.currentRow];
                 let guess = '';
                 for (let i = 0; i < this.state.wordLength; i++) {
-                    const boxContent = row.children[i].textContent;
+                    const boxContent = row.children[i].querySelector('.box-front').textContent;
                     if (boxContent === '') {
                         return null;
                     }
@@ -929,8 +1097,8 @@
                     this.elements.modalCorrectWords.textContent = 'As palavras eram: ' + this.state.currentWords.map(w => w.word).join(', ');
                 }
                 
-                this.elements.modalVictories.textContent = this.state.victoryCount;
-                this.elements.modalRecord.textContent = this.state.recordCount;
+                this.elements.modalVictories.textContent = this.state.gameStats.wins;
+                this.elements.modalRecord.textContent = this.state.gameStats.maxWinStreak;
 
                 const seconds = Math.floor(timeTaken / 1000);
                 const minutes = Math.floor(seconds / 60);
@@ -941,17 +1109,24 @@
             },
 
             handleKeyDown: function(event) {
-                if (event.key.toUpperCase() === 'ENTER' || event.key.toUpperCase() === 'BACKSPACE' || event.key.match(/^[A-Z]$/i) || event.key.toUpperCase() === 'ARROWLEFT' || event.key.toUpperCase() === 'ARROWRIGHT') {
+                if (this.elements.endGameModal.style.display === 'flex' || this.elements.hintModal.style.display === 'flex') {
+                    return;
+                }
+                
+                const key = event.key.toUpperCase();
+                if (!this.state.activeBox) return;
+
+                const currentCol = parseInt(this.state.activeBox.dataset.col);
+                const wordIndex = parseInt(this.state.activeBox.dataset.wordIndex);
+                const isLetter = key.match(/^[A-Z]$/);
+                
+                if (key === 'ENTER' || key === 'BACKSPACE' || isLetter || key === 'ARROWLEFT' || key === 'ARROWRIGHT') {
                     event.preventDefault();
                 }
 
-                if (this.state.currentRow >= this.state.maxAttempts || (this.state.activeBox && this.state.activeBox.dataset.row != this.state.currentRow)) {
+                if (this.state.currentRow >= this.state.maxAttempts) {
                     return;
                 }
-
-                const key = event.key.toUpperCase();
-                const currentCol = parseInt(this.state.activeBox.dataset.col);
-                const wordIndex = parseInt(this.state.activeBox.dataset.wordIndex);
 
                 if (key === 'ENTER') {
                     this.checkWord();
@@ -960,22 +1135,22 @@
                         this.state.activeBox.textContent = '';
                         if (currentCol > 0) {
                             const gameBoardDiv = document.getElementById(`gameBoard-${wordIndex}`);
-                            const prevBox = gameBoardDiv.children[this.state.currentRow].children[currentCol - 1];
+                            const prevBox = gameBoardDiv.children[this.state.currentRow].children[currentCol - 1].querySelector('.box-front');
                             this.focusBox(prevBox);
                         }
                     }
-                } else if (key.match(/^[A-Z]$/)) {
+                } else if (isLetter) {
                     this.addLetter(key);
                 } else if (key === 'ARROWLEFT') {
                     if (currentCol > 0) {
                         const gameBoardDiv = document.getElementById(`gameBoard-${wordIndex}`);
-                        const prevBox = gameBoardDiv.children[this.state.currentRow].children[currentCol - 1];
+                        const prevBox = gameBoardDiv.children[this.state.currentRow].children[currentCol - 1].querySelector('.box-front');
                         this.focusBox(prevBox);
                     }
                 } else if (key === 'ARROWRIGHT') {
                     if (currentCol < this.state.wordLength - 1) {
                         const gameBoardDiv = document.getElementById(`gameBoard-${wordIndex}`);
-                        const nextBox = gameBoardDiv.children[this.state.currentRow].children[currentCol + 1];
+                        const nextBox = gameBoardDiv.children[this.state.currentRow].children[currentCol + 1].querySelector('.box-front');
                         this.focusBox(nextBox);
                     }
                 }
@@ -985,12 +1160,18 @@
                 this.elements.muteButton.textContent = this.state.isMuted ? '🔇' : '🔊';
             },
             
-            showHintModal: function() {
-                this.elements.hintModal.style.display = 'flex';
+            handleHintRequest: function() {
+                if (this.state.hintsAvailable > 0) {
+                    this.elements.hintModal.style.display = 'flex';
+                } else {
+                    this.showTemporaryMessage("Você não tem mais dicas.");
+                }
             },
             
             revealHint: function() {
                 this.elements.hintModal.style.display = 'none';
+                this.state.hintsAvailable--;
+                this.updateHintCount();
                 
                 const activeWordIndex = parseInt(this.state.activeBox.dataset.wordIndex);
                 const activeWord = this.state.currentWords[activeWordIndex].word;
@@ -998,7 +1179,7 @@
                 
                 const availableLetters = [];
                 for (let i = 0; i < this.state.wordLength; i++) {
-                    const box = activeRow.children[i];
+                    const box = activeRow.children[i].querySelector('.box-front');
                     if (!box.textContent) {
                          const letter = activeWord[i];
                          availableLetters.push({letter, index: i});
@@ -1007,12 +1188,65 @@
                 
                 if (availableLetters.length > 0) {
                     const randomHint = availableLetters[Math.floor(Math.random() * availableLetters.length)];
-                    const boxToFill = activeRow.children[randomHint.index];
+                    const boxToFillFront = activeRow.children[randomHint.index].querySelector('.box-front');
+                    const boxToFillBack = activeRow.children[randomHint.index].querySelector('.box-back');
                     
-                    boxToFill.textContent = randomHint.letter;
-                    boxToFill.classList.add('correct');
-                    this.saveGameState();
+                    boxToFillFront.textContent = randomHint.letter;
+                    boxToFillBack.textContent = randomHint.letter;
+                    boxToFillBack.classList.add('correct');
+                    activeRow.children[randomHint.index].classList.add('flip');
                 }
+            },
+
+            updateHintCount: function() {
+                this.elements.hintCountDisplay.textContent = this.state.hintsAvailable;
+                this.elements.hintCountDisplay.style.display = this.state.hintsAvailable > 0 ? 'flex' : 'none';
+            },
+
+            showStatsModal: function() {
+                this.updateStatsDisplay();
+                this.elements.statsModal.style.display = 'flex';
+            },
+
+            getBoardState: function() {
+                const gameBoardData = [];
+                const gameBoards = document.querySelectorAll('.gameBoard');
+                gameBoards.forEach(board => {
+                    const boardData = [];
+                    board.querySelectorAll('.row').forEach(row => {
+                        const rowData = [];
+                        row.querySelectorAll('.box-container').forEach(container => {
+                            const front = container.querySelector('.box-front');
+                            const back = container.querySelector('.box-back');
+                            rowData.push({
+                                text: front.textContent,
+                                classes: Array.from(back.classList).filter(c => ['correct', 'present', 'absent'].includes(c)),
+                                isFlipped: container.classList.contains('flip')
+                            });
+                        });
+                        boardData.push(rowData);
+                    });
+                    gameBoardData.push(boardData);
+                });
+                return gameBoardData;
+            },
+            
+            getKeyboardState: function() {
+                const keyboardState = {};
+                const keys = document.querySelectorAll('.key[data-key]');
+                keys.forEach(key => {
+                    const segments = key.querySelectorAll('.key-segment');
+                    if (segments.length > 0) {
+                        const segmentClasses = [];
+                        segments.forEach(seg => {
+                            segmentClasses.push(Array.from(seg.classList).filter(c => ['correct', 'present', 'absent'].includes(c)));
+                        });
+                        keyboardState[key.dataset.key] = segmentClasses;
+                    } else {
+                        keyboardState[key.dataset.key] = [Array.from(key.classList).filter(c => ['correct', 'present', 'absent'].includes(c))];
+                    }
+                });
+                return keyboardState;
             }
         };
 
