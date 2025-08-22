@@ -18,7 +18,7 @@
             --correct: #6aaa64;
             --present: #c9b458;
             --absent: #3a3a3c;
-            --animation-duration: 0.5s;
+            --animation-duration: 0.3s;
         }
 
         body {
@@ -132,6 +132,7 @@
             width: 50px;
             height: 50px;
             perspective: 1000px;
+            cursor: pointer;
         }
         
         .box {
@@ -150,7 +151,7 @@
             box-sizing: border-box;
             border-radius: 5px;
             backface-visibility: hidden;
-            transition: transform var(--animation-duration) linear, background-color var(--animation-duration);
+            transition: transform var(--animation-duration);
             transform-style: preserve-3d;
         }
 
@@ -164,15 +165,10 @@
 
         .box-back {
             transform: rotateX(180deg);
-            z-index: 1;
         }
 
         .flip-in {
             transform: rotateX(90deg);
-        }
-
-        .flip-out {
-            transform: rotateX(0deg);
         }
 
         .flip {
@@ -462,6 +458,7 @@
             margin: 0;
             font-weight: 600;
         }
+        
     </style>
 </head>
 <body>
@@ -473,9 +470,9 @@
             <button id="restartButton" title="Reiniciar Jogo">&#x21BB;</button>
         </div>
         <div class="header-right">
-            <button id="hintButton" title="Pedir Dica" style="font-size: 1.2em; padding: 8px 12px; position: relative;">
+            <button id="hintButton" title="Pedir Dica" style="font-size: 1.2em; padding: 8px 12px; position: relative; background: transparent; color: white;">
                 💡
-                <span id="hintCount" style="position: absolute; bottom: -5px; right: -5px; font-size: 0.6em; background: red; border-radius: 50%; width: 15px; height: 15px; display: flex; justify-content: center; align-items: center; color: white;"></span>
+                <span id="hintCount" style="position: absolute; bottom: -5px; right: -5px; font-size: 0.6em; background: red; border-radius: 50%; width: 15px; height: 15px; display: flex; justify-content: center; align-items: center; color: white; font-weight: 600;"></span>
             </button>
             <button class="mute-button" id="muteButton">🔊</button>
         </div>
@@ -576,10 +573,10 @@
                 tempMessageDisplay: document.getElementById('tempMessage'),
                 endGameModal: document.getElementById('endGameModal'),
                 modalStatus: document.getElementById('modalStatus'),
-                modalCorrectWords: document.getElementById('modalCorrectWords'),
                 modalVictories: document.getElementById('modalVictories'),
                 modalRecord: document.getElementById('modalRecord'),
                 modalTime: document.getElementById('modalTime'),
+                modalCorrectWords: document.getElementById('modalCorrectWords'),
                 modalNewGameButton: document.getElementById('modalNewGameButton'),
                 muteButton: document.getElementById('muteButton'),
                 hintButton: document.getElementById('hintButton'),
@@ -707,6 +704,8 @@
                 this.elements.statsPlayed.textContent = this.state.gameStats.played;
                 this.elements.statsWinRate.textContent = `${this.state.gameStats.played > 0 ? Math.round((this.state.gameStats.wins / this.state.gameStats.played) * 100) : 0}%`;
                 this.elements.statsWinStreak.textContent = this.state.gameStats.maxWinStreak;
+                this.elements.victoryCountDisplay.textContent = this.state.victoryCount;
+                this.elements.recordCountDisplay.textContent = this.state.recordCount;
                 this.buildGuessDistributionChart();
             },
 
@@ -836,13 +835,13 @@
                             boxFront.dataset.col = j;
                             boxFront.dataset.wordIndex = wordIndex;
                             boxFront.tabIndex = 0;
+                            boxFront.addEventListener('click', () => this.focusBox(boxFront));
                             
                             const boxBack = document.createElement('div');
                             boxBack.classList.add('box', 'box-back');
                             boxBack.dataset.row = i;
                             boxBack.dataset.col = j;
                             boxBack.dataset.wordIndex = wordIndex;
-                            boxBack.tabIndex = 0;
 
                             boxContainer.appendChild(boxFront);
                             boxContainer.appendChild(boxBack);
@@ -974,16 +973,26 @@
 
                 let allWordsSolved = true;
                 let currentGuessedCorrectly = false;
+                this.state.keyColorStates = {};
                 const numWords = this.state.currentWords.length;
                 let promises = [];
 
                 this.state.currentWords.forEach((wordObj, wordIndex) => {
+                    const board = document.getElementById(`gameBoard-${wordIndex}`);
+                    const row = board.children[this.state.currentRow];
+
+                    if (!wordObj.solved) {
+                        for (let i = 0; i < this.state.wordLength; i++) {
+                            const frontBox = row.children[i].querySelector('.box-front');
+                            const backBox = row.children[i].querySelector('.box-back');
+                            frontBox.textContent = currentGuess[i];
+                            backBox.textContent = currentGuess[i];
+                        }
+                    }
+                    
                     if (wordObj.solved) {
                         return;
                     }
-
-                    const board = document.getElementById(`gameBoard-${wordIndex}`);
-                    const row = board.children[this.state.currentRow];
                     
                     const correctLetters = Array.from(wordObj.word);
                     const guessedLetters = Array.from(currentGuess);
@@ -1009,55 +1018,59 @@
                     }
                     
                     let isWordSolved = true;
-                    for (let i = 0; i < this.state.wordLength; i++) {
-                        if (guessResult[i] !== 'correct') {
-                            isWordSolved = false;
-                        }
-                    }
-                    
-                    if (isWordSolved && !wordObj.solved) {
-                        wordObj.solved = true;
-                        this.state.solvedWords++;
-                        currentGuessedCorrectly = true;
-                    }
-
-                    if (!wordObj.solved) {
-                        allWordsSolved = false;
-                    }
                     
                     const animationPromise = new Promise(resolve => {
                         row.querySelectorAll('.box-container').forEach((container, i) => {
                             setTimeout(() => {
                                 const front = container.querySelector('.box-front');
                                 const back = container.querySelector('.box-back');
-                                
-                                front.classList.add('flip-in');
-                                
-                                front.addEventListener('transitionend', () => {
-                                    front.classList.remove('flip-in');
-                                    front.classList.add('flip-out');
-                                    front.textContent = currentGuess[i];
-                                    
-                                    back.textContent = currentGuess[i];
-                                    back.classList.add(guessResult[i]);
-                                    
-                                    container.classList.add('flip');
-                                    
-                                    if (i === this.state.wordLength - 1) {
-                                        resolve();
-                                    }
-                                }, { once: true });
+
+                                back.classList.add(guessResult[i]);
+                                container.classList.add('flip');
+
+                                if (guessResult[i] !== 'correct') {
+                                    isWordSolved = false;
+                                }
+
+                                const letter = currentGuess[i];
+                                if (!this.state.keyColorStates[letter]) {
+                                    this.state.keyColorStates[letter] = new Array(numWords).fill('absent');
+                                }
+                                if (guessResult[i] === 'correct') {
+                                    this.state.keyColorStates[letter][wordIndex] = 'correct';
+                                } else if (guessResult[i] === 'present' && this.state.keyColorStates[letter][wordIndex] !== 'correct') {
+                                    this.state.keyColorStates[letter][wordIndex] = 'present';
+                                }
+
+                                if (i === this.state.wordLength - 1) {
+                                    resolve();
+                                }
                             }, i * 350);
                         });
                     });
                     promises.push(animationPromise);
+                    
+                    if (isWordSolved && !wordObj.solved) {
+                        wordObj.solved = true;
+                        this.state.solvedWords++;
+                        currentGuessedCorrectly = true;
+                    }
+                    if (!wordObj.solved) {
+                        allWordsSolved = false;
+                    }
                 });
                 
                 Promise.all(promises).then(() => {
-                    this.updateKeyboardColors(currentGuess);
-                    
+                    this.updateKeyboardColors();
+
                     if (currentGuessedCorrectly) {
                         this.playSound(this.sounds.correct);
+                        this.state.currentWords.forEach((wordObj, wordIndex) => {
+                            if (wordObj.solved) {
+                                const board = document.getElementById(`gameBoard-${wordIndex}`);
+                                this.updateBoardWithCorrectWord(board, wordObj.word);
+                            }
+                        });
                     }
                     
                     if (allWordsSolved) {
@@ -1094,81 +1107,28 @@
                 });
             },
 
-            updateKeyboardColors: function(currentGuess) {
+            updateKeyboardColors: function() {
                 const numWords = this.state.currentWords.length;
-                let keyboardColorUpdates = {};
-                
-                this.state.currentWords.forEach((wordObj, wordIndex) => {
-                    if (wordObj.solved) return;
-                    
-                    const correctLetters = Array.from(wordObj.word);
-                    const guessedLetters = Array.from(currentGuess);
-                    const wordCopy = [...correctLetters];
-                    
-                    const guessResult = new Array(this.state.wordLength).fill('absent');
+                const allKeys = document.querySelectorAll('.key');
 
-                    for (let i = 0; i < this.state.wordLength; i++) {
-                        if (this.normalizeString(guessedLetters[i]) === this.normalizeString(wordCopy[i])) {
-                            guessResult[i] = 'correct';
-                            wordCopy[i] = null;
-                            guessedLetters[i] = null;
-                        }
-                    }
-                    for (let i = 0; i < this.state.wordLength; i++) {
-                        if (guessedLetters[i] !== null) {
-                            const normalizedLetter = this.normalizeString(guessedLetters[i]);
-                            const index = wordCopy.findIndex(char => char !== null && this.normalizeString(char) === normalizedLetter);
-                            if (index > -1) {
-                                guessResult[i] = 'present';
-                                wordCopy[index] = null;
-                            }
-                        }
-                    }
-
-                    for (let i = 0; i < this.state.wordLength; i++) {
-                        const letter = currentGuess[i];
-                        if (!keyboardColorUpdates[letter]) {
-                            keyboardColorUpdates[letter] = new Array(numWords).fill('absent');
-                        }
-                        if (guessResult[i] === 'correct') {
-                            keyboardColorUpdates[letter][wordIndex] = 'correct';
-                        } else if (guessResult[i] === 'present' && keyboardColorUpdates[letter][wordIndex] !== 'correct') {
-                            keyboardColorUpdates[letter][wordIndex] = 'present';
-                        }
+                allKeys.forEach(key => {
+                    const keyText = key.dataset.key.toUpperCase();
+                    if (this.state.keyColorStates[keyText]) {
+                        const segments = key.querySelectorAll('.key-segment');
+                        this.state.keyColorStates[keyText].forEach((result, index) => {
+                             const segment = segments[index];
+                             if (result === 'correct') {
+                                 segment.classList.remove('present', 'absent');
+                                 segment.classList.add('correct');
+                             } else if (result === 'present' && !segment.classList.contains('correct')) {
+                                 segment.classList.remove('absent');
+                                 segment.classList.add('present');
+                             } else if (!segment.classList.contains('correct') && !segment.classList.contains('present')) {
+                                 segment.classList.add('absent');
+                             }
+                         });
                     }
                 });
-                
-                for (const letter in keyboardColorUpdates) {
-                    const key = document.querySelector(`.key[data-key="${letter.toLowerCase()}"]`);
-                    if (key) {
-                        if (numWords > 1) {
-                             const segments = key.querySelectorAll('.key-segment');
-                             keyboardColorUpdates[letter].forEach((result, index) => {
-                                 const segment = segments[index];
-                                 if (result === 'correct') {
-                                     segment.classList.remove('present', 'absent');
-                                     segment.classList.add('correct');
-                                 } else if (result === 'present' && !segment.classList.contains('correct')) {
-                                     segment.classList.remove('absent');
-                                     segment.classList.add('present');
-                                 } else if (!segment.classList.contains('correct') && !segment.classList.contains('present')) {
-                                     segment.classList.add('absent');
-                                 }
-                             });
-                        } else {
-                            const result = keyboardColorUpdates[letter][0];
-                            if (result === 'correct') {
-                                key.classList.remove('present', 'absent');
-                                key.classList.add('correct');
-                            } else if (result === 'present' && !key.classList.contains('correct')) {
-                                key.classList.remove('absent');
-                                key.classList.add('present');
-                            } else if (key.classList.contains('correct') === false && key.classList.contains('present') === false) {
-                                key.classList.add('absent');
-                            }
-                        }
-                    }
-                }
             },
 
             isWordValid: function(word) {
@@ -1182,6 +1142,21 @@
                 if (this.state.activeBox) {
                     this.state.activeBox.classList.remove('active');
                 }
+            },
+
+            updateBoardWithCorrectWord: function(board, word) {
+                const finalRow = board.children[this.state.currentRow];
+                const correctLetters = Array.from(word);
+                
+                finalRow.querySelectorAll('.box-front').forEach((box, i) => {
+                    box.textContent = correctLetters[i];
+                });
+
+                finalRow.querySelectorAll('.box-back').forEach((box, i) => {
+                    box.textContent = correctLetters[i];
+                    box.classList.remove('present', 'absent');
+                    box.classList.add('correct');
+                });
             },
 
             getCurrentGuess: function() {
@@ -1221,17 +1196,22 @@
             },
 
             handleKeyDown: function(event) {
-                if (event.key.toUpperCase() === 'ENTER' || event.key.toUpperCase() === 'BACKSPACE' || event.key.match(/^[A-Z]$/i) || event.key.toUpperCase() === 'ARROWLEFT' || event.key.toUpperCase() === 'ARROWRIGHT') {
-                    event.preventDefault();
-                }
-
-                if (this.state.currentRow >= this.state.maxAttempts || (this.state.activeBox && this.state.activeBox.dataset.row != this.state.currentRow)) {
+                if (this.elements.endGameModal.style.display === 'flex' || this.elements.hintModal.style.display === 'flex') {
                     return;
                 }
-
+                
                 const key = event.key.toUpperCase();
                 const currentCol = parseInt(this.state.activeBox.dataset.col);
                 const wordIndex = parseInt(this.state.activeBox.dataset.wordIndex);
+                const isLetter = key.match(/^[A-Z]$/);
+                
+                if (key === 'ENTER' || key === 'BACKSPACE' || isLetter || key === 'ARROWLEFT' || key === 'ARROWRIGHT') {
+                    event.preventDefault();
+                }
+
+                if (this.state.currentRow >= this.state.maxAttempts) {
+                    return;
+                }
 
                 if (key === 'ENTER') {
                     this.checkWord();
@@ -1244,7 +1224,7 @@
                             this.focusBox(prevBox);
                         }
                     }
-                } else if (key.match(/^[A-Z]$/)) {
+                } else if (isLetter) {
                     this.addLetter(key);
                 } else if (key === 'ARROWLEFT') {
                     if (currentCol > 0) {
@@ -1311,6 +1291,46 @@
             showStatsModal: function() {
                 this.updateStatsDisplay();
                 this.elements.statsModal.style.display = 'flex';
+            },
+
+            getBoardState: function() {
+                const gameBoardData = [];
+                const gameBoards = document.querySelectorAll('.gameBoard');
+                gameBoards.forEach(board => {
+                    const boardData = [];
+                    board.querySelectorAll('.row').forEach(row => {
+                        const rowData = [];
+                        row.querySelectorAll('.box-container').forEach(container => {
+                            const front = container.querySelector('.box-front');
+                            rowData.push({
+                                text: front.textContent,
+                                classes: Array.from(front.classList).filter(c => ['correct', 'present', 'absent'].includes(c)),
+                                isFlipped: container.classList.contains('flip')
+                            });
+                        });
+                        boardData.push(rowData);
+                    });
+                    gameBoardData.push(boardData);
+                });
+                return gameBoardData;
+            },
+            
+            getKeyboardState: function() {
+                const keyboardState = {};
+                const keys = document.querySelectorAll('.key[data-key]');
+                keys.forEach(key => {
+                    const segments = key.querySelectorAll('.key-segment');
+                    if (segments.length > 0) {
+                        const segmentClasses = [];
+                        segments.forEach(seg => {
+                            segmentClasses.push(Array.from(seg.classList).filter(c => ['correct', 'present', 'absent'].includes(c)));
+                        });
+                        keyboardState[key.dataset.key] = segmentClasses;
+                    } else {
+                        keyboardState[key.dataset.key] = [Array.from(key.classList).filter(c => ['correct', 'present', 'absent'].includes(c))];
+                    }
+                });
+                return keyboardState;
             }
         };
 
