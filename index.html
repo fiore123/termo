@@ -415,8 +415,14 @@
             },
 
             bindEvents: function() {
-                this.elements.startButton.addEventListener('click', this.loadWords.bind(this));
-                this.elements.restartButton.addEventListener('click', this.startGame.bind(this));
+                this.elements.startButton.addEventListener('click', () => {
+                    localStorage.removeItem('termoGameState');
+                    this.startGame();
+                });
+                this.elements.restartButton.addEventListener('click', () => {
+                    localStorage.removeItem('termoGameState');
+                    this.startGame();
+                });
                 this.elements.modalNewGameButton.addEventListener('click', () => {
                     this.elements.endGameModal.style.display = 'none';
                     this.startGame();
@@ -588,6 +594,11 @@
                     }
                     if (firstEmptyBox) {
                         this.focusBox(firstEmptyBox);
+                    } else if (this.state.currentRow < this.state.maxAttempts) {
+                         const firstBoxOfNextRow = document.querySelector(`.box[data-row="${this.state.currentRow}"][data-col="0"]`);
+                         if (firstBoxOfNextRow) {
+                            this.focusBox(firstBoxOfNextRow);
+                         }
                     }
 
                     this.elements.startButton.style.display = 'none';
@@ -771,14 +782,12 @@
                         const nextBox = gameBoardDiv.children[this.state.currentRow].children[nextCol];
                         this.focusBox(nextBox);
                     }
-                    this.saveGameState();
                 }
             },
 
             deleteLetter: function() {
                 if (!this.state.activeBox) return;
                 this.state.activeBox.textContent = '';
-                this.saveGameState();
             },
 
             checkWord: function() {
@@ -797,7 +806,7 @@
 
                 let allWordsSolved = true;
                 let currentGuessedCorrectly = false;
-                let keyboardColorUpdates = {};
+                this.state.keyColorStates = {};
                 const numWords = this.state.currentWords.length;
 
                 this.state.currentWords.forEach((wordObj, wordIndex) => {
@@ -846,13 +855,13 @@
                         }
                         
                         const letter = currentGuess[i];
-                        if (!keyboardColorUpdates[letter]) {
-                            keyboardColorUpdates[letter] = new Array(numWords).fill('absent');
+                        if (!this.state.keyColorStates[letter]) {
+                            this.state.keyColorStates[letter] = new Array(numWords).fill('absent');
                         }
                         if (guessResult[i] === 'correct') {
-                            keyboardColorUpdates[letter][wordIndex] = 'correct';
-                        } else if (guessResult[i] === 'present' && keyboardColorUpdates[letter][wordIndex] !== 'correct') {
-                            keyboardColorUpdates[letter][wordIndex] = 'present';
+                            this.state.keyColorStates[letter][wordIndex] = 'correct';
+                        } else if (guessResult[i] === 'present' && this.state.keyColorStates[letter][wordIndex] !== 'correct') {
+                            this.state.keyColorStates[letter][wordIndex] = 'present';
                         }
                     }
                     
@@ -867,12 +876,12 @@
                     }
                 });
 
-                for (const letter in keyboardColorUpdates) {
+                for (const letter in this.state.keyColorStates) {
                     const key = document.querySelector(`.key[data-key="${letter.toLowerCase()}"]`);
                     if (key) {
                         if (numWords > 1) {
                              const segments = key.querySelectorAll('.key-segment');
-                             keyboardColorUpdates[letter].forEach((result, index) => {
+                             this.state.keyColorStates[letter].forEach((result, index) => {
                                  const segment = segments[index];
                                  if (result === 'correct') {
                                      segment.classList.remove('present', 'absent');
@@ -885,7 +894,7 @@
                                  }
                              });
                         } else {
-                            const result = keyboardColorUpdates[letter][0];
+                            const result = this.state.keyColorStates[letter][0];
                             if (result === 'correct') {
                                 key.classList.remove('present', 'absent');
                                 key.classList.add('correct');
