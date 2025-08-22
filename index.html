@@ -18,7 +18,6 @@
             --correct: #6aaa64;
             --present: #c9b458;
             --absent: #3a3a3c;
-            --animation-duration: 0.3s;
         }
 
         body {
@@ -93,19 +92,13 @@
             gap: 20px;
             flex-wrap: wrap;
             justify-content: center;
-            width: 100%;
-            max-width: 550px;
         }
         
         .gameBoard {
             display: flex;
             flex-direction: column;
             gap: 8px;
-            flex-grow: 1;
-            flex-shrink: 1;
-            flex-basis: 250px; /* Largura base para cada tabuleiro, permitindo quebra */
-            max-width: 250px;
-            min-width: 200px;
+            min-width: 300px;
             border-radius: 5px;
         }
 
@@ -115,6 +108,8 @@
         }
 
         .box {
+            width: 50px;
+            height: 50px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -124,28 +119,14 @@
             border: 2px solid var(--box-border);
             background-color: var(--main-bg);
             color: white;
+            cursor: pointer;
             box-sizing: border-box;
+            transition: background-color 0.3s, border-color 0.3s;
             border-radius: 5px;
-            flex: 1; /* Garante que as caixas se expandam dentro da linha */
-            aspect-ratio: 1 / 1; /* Mantém a proporção quadrada */
-            transition: transform var(--animation-duration);
-            transform-style: preserve-3d;
         }
-
+        
         .box.active {
             border-color: white;
-        }
-
-        .box-front {
-            z-index: 2;
-        }
-
-        .box-back {
-            transform: rotateX(180deg);
-        }
-
-        .flip {
-            transform: rotateX(180deg);
         }
 
         .correct {
@@ -296,59 +277,11 @@
             font-size: 1.1em;
             font-weight: 400;
         }
-        
-        .stats-chart-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: 20px;
-        }
-
-        .stats-chart-bar {
-            background-color: var(--absent);
-            height: 20px;
-            border-radius: 3px;
-            margin: 3px 0;
-            display: flex;
-            align-items: center;
-            transition: width 0.5s ease-in-out;
-        }
-
-        .stats-chart-bar .label {
-            font-weight: 600;
-            font-size: 0.9em;
-            padding: 0 5px;
-        }
-        
-        .stats-chart-bar .value {
-            font-weight: 600;
-            font-size: 0.9em;
-            padding: 0 5px;
-            color: var(--text-color);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            width: 100%;
-            margin-top: 20px;
-        }
-
-        .stats-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-size: 1.2em;
-            font-weight: 600;
-        }
-
-        .stats-item .value {
-            font-size: 1.5em;
-            color: white;
-        }
 
         .mute-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
             background-color: transparent;
             border: none;
             cursor: pointer;
@@ -491,16 +424,13 @@
                 wordLength: 5,
                 currentRow: 0,
                 maxAttempts: 6,
-                isDailyGame: false,
-                hintsAvailable: 3,
+                victoryCount: 0,
+                recordCount: 0,
+                normalizedWordDatabase: [],
+                startTime: null,
+                isMuted: false,
+                solvedWords: 0,
                 keyColorStates: {},
-                gameStats: {
-                    played: 0,
-                    wins: 0,
-                    currentWinStreak: 0,
-                    maxWinStreak: 0,
-                    guessDistribution: {}
-                }
             },
 
             elements: {
@@ -540,10 +470,7 @@
             },
 
             bindEvents: function() {
-                this.elements.startButton.addEventListener('click', () => {
-                    this.state.isDailyGame = false;
-                    this.startGame();
-                });
+                this.elements.startButton.addEventListener('click', this.loadWords.bind(this));
                 this.elements.restartButton.addEventListener('click', this.startGame.bind(this));
                 this.elements.modalNewGameButton.addEventListener('click', () => {
                     this.elements.endGameModal.style.display = 'none';
@@ -808,7 +735,7 @@
                 let allWordsSolved = true;
                 let currentGuessedCorrectly = false;
                 let keyboardColorUpdates = {};
-                const numWords = parseInt(this.elements.wordCountSelect.value);
+                const numWords = this.state.currentWords.length;
 
                 this.state.currentWords.forEach((wordObj, wordIndex) => {
                     const board = document.getElementById(`gameBoard-${wordIndex}`);
