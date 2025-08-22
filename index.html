@@ -330,6 +330,41 @@
             height: 100%;
         }
 
+        .hint-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+        }
+
+        .hint-modal-content {
+            background-color: var(--main-bg);
+            color: var(--text-color);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            max-width: 80%;
+            min-width: 300px;
+        }
+        
+        .hint-modal-content button {
+            margin-top: 15px;
+            margin-left: 5px;
+            margin-right: 5px;
+        }
+
+        .hint-modal-content h3 {
+            margin: 0;
+            font-weight: 600;
+        }
+        
     </style>
 </head>
 <body>
@@ -339,6 +374,7 @@
         <span>🏆 <span id="victoryCount">0</span></span>
         <span>✨ <span id="recordCount">0</span></span>
         <button id="restartButton" title="Reiniciar Jogo">&#x21BB;</button>
+        <button id="hintButton" title="Pedir Dica" style="font-size: 1.2em; padding: 8px 12px;">💡</button>
     </div>
 
     <div class="options">
@@ -370,6 +406,15 @@
         </div>
     </div>
     
+    <div id="hintModal" class="hint-modal-overlay">
+        <div class="hint-modal-content">
+            <h3>Deseja mesmo uma dica?</h3>
+            <p>Uma letra correta será revelada.</p>
+            <button id="confirmHintButton" class="start-button">Sim</button>
+            <button id="cancelHintButton" class="start-button">Não</button>
+        </div>
+    </div>
+
     <button class="mute-button" id="muteButton">🔊</button>
 
     <script>
@@ -407,6 +452,10 @@
                 modalCorrectWords: document.getElementById('modalCorrectWords'),
                 modalNewGameButton: document.getElementById('modalNewGameButton'),
                 muteButton: document.getElementById('muteButton'),
+                hintButton: document.getElementById('hintButton'),
+                hintModal: document.getElementById('hintModal'),
+                confirmHintButton: document.getElementById('confirmHintButton'),
+                cancelHintButton: document.getElementById('cancelHintButton'),
             },
 
             sounds: {
@@ -435,6 +484,9 @@
                     this.startGame();
                 });
                 this.elements.muteButton.addEventListener('click', this.toggleMute.bind(this));
+                this.elements.hintButton.addEventListener('click', this.showHintModal.bind(this));
+                this.elements.confirmHintButton.addEventListener('click', this.revealHint.bind(this));
+                this.elements.cancelHintButton.addEventListener('click', () => this.elements.hintModal.style.display = 'none');
                 document.addEventListener('keydown', this.handleKeyDown.bind(this));
             },
 
@@ -1065,10 +1117,45 @@
                 this.state.isMuted = !this.state.isMuted;
                 this.elements.muteButton.textContent = this.state.isMuted ? '🔇' : '🔊';
             },
+            
+            showHintModal: function() {
+                this.elements.hintModal.style.display = 'flex';
+            },
+            
+            revealHint: function() {
+                this.elements.hintModal.style.display = 'none';
+                
+                const activeWordIndex = parseInt(this.state.activeBox.dataset.wordIndex);
+                const activeWord = this.state.currentWords[activeWordIndex].word;
+                const activeRow = document.getElementById(`gameBoard-${activeWordIndex}`).children[this.state.currentRow];
+                
+                const availableLetters = [];
+                for (let i = 0; i < this.state.wordLength; i++) {
+                    const box = activeRow.children[i];
+                    if (!box.textContent) {
+                         const letter = activeWord[i];
+                         availableLetters.push({letter, index: i});
+                    }
+                }
+                
+                if (availableLetters.length > 0) {
+                    const randomHint = availableLetters[Math.floor(Math.random() * availableLetters.length)];
+                    const boxToFill = activeRow.children[randomHint.index];
+                    
+                    boxToFill.textContent = randomHint.letter;
+                    boxToFill.classList.add('correct');
+                    this.saveGameState();
+                }
+            }
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            TermoGame.init();
+            const savedState = localStorage.getItem('termoGameState');
+            if (savedState) {
+                TermoGame.loadGameState();
+            } else {
+                TermoGame.init();
+            }
         });
     </script>
 </body>
