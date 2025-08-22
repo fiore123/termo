@@ -978,73 +978,73 @@
                 let promises = [];
 
                 this.state.currentWords.forEach((wordObj, wordIndex) => {
-                    if (wordObj.solved) return;
-                    
                     const board = document.getElementById(`gameBoard-${wordIndex}`);
                     const row = board.children[this.state.currentRow];
-                    
-                    const correctLetters = Array.from(wordObj.word);
-                    const guessedLetters = Array.from(currentGuess);
-                    const guessResult = new Array(this.state.wordLength).fill('absent');
-                    const wordCopy = [...correctLetters];
-                    
-                    for (let i = 0; i < this.state.wordLength; i++) {
-                        if (this.normalizeString(guessedLetters[i]) === this.normalizeString(wordCopy[i])) {
-                            guessResult[i] = 'correct';
-                            wordCopy[i] = null;
-                            guessedLetters[i] = null;
-                        }
-                    }
-                    for (let i = 0; i < this.state.wordLength; i++) {
-                        if (guessedLetters[i] !== null) {
-                            const normalizedLetter = this.normalizeString(guessedLetters[i]);
-                            const index = wordCopy.findIndex(char => char !== null && this.normalizeString(char) === normalizedLetter);
-                            if (index > -1) {
-                                guessResult[i] = 'present';
-                                wordCopy[index] = null;
+
+                    if (!wordObj.solved) {
+                        const correctLetters = Array.from(wordObj.word);
+                        const guessedLetters = Array.from(currentGuess);
+                        const guessResult = new Array(this.state.wordLength).fill('absent');
+                        const wordCopy = [...correctLetters];
+                        
+                        for (let i = 0; i < this.state.wordLength; i++) {
+                            if (this.normalizeString(guessedLetters[i]) === this.normalizeString(wordCopy[i])) {
+                                guessResult[i] = 'correct';
+                                wordCopy[i] = null;
+                                guessedLetters[i] = null;
                             }
                         }
-                    }
-                    
-                    let isWordSolved = true;
-                    
-                    const animationPromise = new Promise(resolve => {
-                        row.querySelectorAll('.box-container').forEach((container, i) => {
-                            setTimeout(() => {
-                                const front = container.querySelector('.box-front');
-                                const back = container.querySelector('.box-back');
-                                
-                                front.textContent = currentGuess[i];
-                                back.textContent = currentGuess[i];
-                                back.classList.add(guessResult[i]);
-                                container.classList.add('flip');
+                        for (let i = 0; i < this.state.wordLength; i++) {
+                            if (guessedLetters[i] !== null) {
+                                const normalizedLetter = this.normalizeString(guessedLetters[i]);
+                                const index = wordCopy.findIndex(char => char !== null && this.normalizeString(char) === normalizedLetter);
+                                if (index > -1) {
+                                    guessResult[i] = 'present';
+                                    wordCopy[index] = null;
+                                }
+                            }
+                        }
+                        
+                        let isWordSolved = true;
+                        
+                        const animationPromise = new Promise(resolve => {
+                            row.querySelectorAll('.box-container').forEach((container, i) => {
+                                setTimeout(() => {
+                                    const front = container.querySelector('.box-front');
+                                    const back = container.querySelector('.box-back');
+                                    
+                                    front.textContent = currentGuess[i];
+                                    back.textContent = currentGuess[i];
+                                    back.classList.add(guessResult[i]);
+                                    container.classList.add('flip');
 
-                                if (guessResult[i] !== 'correct') {
-                                    isWordSolved = false;
-                                }
+                                    if (guessResult[i] !== 'correct') {
+                                        isWordSolved = false;
+                                    }
 
-                                const letter = currentGuess[i];
-                                if (!this.state.keyColorStates[letter]) {
-                                    this.state.keyColorStates[letter] = new Array(numWords).fill('absent');
-                                }
-                                if (guessResult[i] === 'correct') {
-                                    this.state.keyColorStates[letter][wordIndex] = 'correct';
-                                } else if (guessResult[i] === 'present' && this.state.keyColorStates[letter][wordIndex] !== 'correct') {
-                                    this.state.keyColorStates[letter][wordIndex] = 'present';
-                                }
+                                    const letter = currentGuess[i];
+                                    if (!this.state.keyColorStates[letter]) {
+                                        this.state.keyColorStates[letter] = new Array(numWords).fill('absent');
+                                    }
+                                    if (guessResult[i] === 'correct') {
+                                        this.state.keyColorStates[letter][wordIndex] = 'correct';
+                                    } else if (guessResult[i] === 'present' && this.state.keyColorStates[letter][wordIndex] !== 'correct') {
+                                        this.state.keyColorStates[letter][wordIndex] = 'present';
+                                    }
 
-                                if (i === this.state.wordLength - 1) {
-                                    resolve();
-                                }
-                            }, i * 350);
+                                    if (i === this.state.wordLength - 1) {
+                                        resolve();
+                                    }
+                                }, i * 350);
+                            });
                         });
-                    });
-                    promises.push(animationPromise);
-                    
-                    if (isWordSolved && !wordObj.solved) {
-                        wordObj.solved = true;
-                        this.state.solvedWords++;
-                        currentGuessedCorrectly = true;
+                        promises.push(animationPromise);
+                        
+                        if (isWordSolved && !wordObj.solved) {
+                            wordObj.solved = true;
+                            this.state.solvedWords++;
+                            currentGuessedCorrectly = true;
+                        }
                     }
                     if (!wordObj.solved) {
                         allWordsSolved = false;
