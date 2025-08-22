@@ -498,13 +498,16 @@
                 wordLength: 5,
                 currentRow: 0,
                 maxAttempts: 6,
-                victoryCount: 0,
-                recordCount: 0,
-                normalizedWordDatabase: [],
-                startTime: null,
-                isMuted: false,
-                solvedWords: 0,
+                isDailyGame: false,
+                hintsAvailable: 3,
                 keyColorStates: {},
+                gameStats: {
+                    played: 0,
+                    wins: 0,
+                    currentWinStreak: 0,
+                    maxWinStreak: 0,
+                    guessDistribution: {}
+                }
             },
 
             elements: {
@@ -544,7 +547,10 @@
             },
 
             bindEvents: function() {
-                this.elements.startButton.addEventListener('click', this.loadWords.bind(this));
+                this.elements.startButton.addEventListener('click', () => {
+                    this.state.isDailyGame = false;
+                    this.startGame();
+                });
                 this.elements.restartButton.addEventListener('click', this.startGame.bind(this));
                 this.elements.modalNewGameButton.addEventListener('click', () => {
                     this.elements.endGameModal.style.display = 'none';
@@ -809,7 +815,7 @@
                 let allWordsSolved = true;
                 let currentGuessedCorrectly = false;
                 let keyboardColorUpdates = {};
-                const numWords = this.state.currentWords.length;
+                const numWords = parseInt(this.elements.wordCountSelect.value);
 
                 this.state.currentWords.forEach((wordObj, wordIndex) => {
                     const board = document.getElementById(`gameBoard-${wordIndex}`);
