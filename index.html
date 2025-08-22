@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Termo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --dark-bg: #1a1a1a;
@@ -18,7 +21,7 @@
         }
 
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Poppins', 'Arial', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -45,7 +48,7 @@
 
         .game-stats span {
             font-size: 1.2em;
-            font-weight: bold;
+            font-weight: 600;
             display: flex;
             align-items: center;
             gap: 5px;
@@ -80,7 +83,7 @@
         .start-button {
             background-color: var(--correct);
             color: white;
-            font-weight: bold;
+            font-weight: 600;
         }
 
         #gameContainer {
@@ -110,7 +113,7 @@
             justify-content: center;
             align-items: center;
             font-size: 2em;
-            font-weight: bold;
+            font-weight: 600;
             text-transform: uppercase;
             border: 2px solid var(--box-border);
             background-color: var(--main-bg);
@@ -165,7 +168,7 @@
             border: none;
             border-radius: 5px;
             font-size: 1em;
-            font-weight: bold;
+            font-weight: 600;
             cursor: pointer;
             text-transform: uppercase;
             display: flex;
@@ -174,6 +177,7 @@
             user-select: none;
             color: var(--key-text);
             transition: background-color 0.2s;
+            flex: 1;
         }
 
         .key-content {
@@ -224,7 +228,7 @@
             color: white;
             border-radius: 5px;
             font-size: 1.2em;
-            font-weight: bold;
+            font-weight: 600;
             opacity: 0;
             transition: opacity 0.5s ease-in-out;
             pointer-events: none;
@@ -233,7 +237,7 @@
         #message {
             margin-top: 20px;
             font-size: 1.2em;
-            font-weight: bold;
+            font-weight: 600;
             color: var(--text-color);
         }
 
@@ -264,11 +268,13 @@
         .modal-content h2 {
             margin-top: 0;
             margin-bottom: 10px;
+            font-weight: 600;
         }
 
         .modal-content p {
             margin: 8px 0;
             font-size: 1.1em;
+            font-weight: 400;
         }
 
         .mute-button {
@@ -1061,12 +1067,7 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            const savedState = localStorage.getItem('termoGameState');
-            if (savedState) {
-                TermoGame.loadGameState();
-            } else {
-                TermoGame.init();
-            }
+            TermoGame.init();
         });
     </script>
 </body>
