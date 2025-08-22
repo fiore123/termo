@@ -293,40 +293,41 @@
         .mute-button:hover {
             color: white;
         }
-
-        .hint-modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1001;
+        
+        .custom-select-wrapper {
+            position: relative;
+            display: inline-block;
         }
 
-        .hint-modal-content {
-            background-color: var(--main-bg);
+        .custom-select {
+            display: flex;
+            align-items: center;
+            background-color: var(--box-border);
+            border-radius: 5px;
+            position: relative;
+        }
+
+        .custom-select::after {
+            content: '▼';
+            font-size: 0.8em;
             color: var(--text-color);
-            padding: 30px;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-            max-width: 80%;
-            min-width: 300px;
+            padding: 0 8px;
+            pointer-events: none;
         }
         
-        .hint-modal-content button {
-            margin-top: 15px;
-            margin-left: 5px;
-            margin-right: 5px;
-        }
-
-        .hint-modal-content h3 {
-            margin: 0;
-            font-weight: 600;
+        #wordCountSelect {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-color: transparent;
+            border: none;
+            color: var(--text-color);
+            padding: 8px 15px;
+            font-size: 1em;
+            cursor: pointer;
+            outline: none;
+            width: 100%;
+            height: 100%;
         }
 
     </style>
@@ -338,7 +339,6 @@
         <span>🏆 <span id="victoryCount">0</span></span>
         <span>✨ <span id="recordCount">0</span></span>
         <button id="restartButton" title="Reiniciar Jogo">&#x21BB;</button>
-        <button id="hintButton" title="Pedir Dica" style="font-size: 1.2em; padding: 8px 12px;">💡</button>
     </div>
 
     <div class="options">
@@ -370,15 +370,6 @@
         </div>
     </div>
     
-    <div id="hintModal" class="hint-modal-overlay">
-        <div class="hint-modal-content">
-            <h3>Deseja mesmo uma dica?</h3>
-            <p>Uma letra correta será revelada.</p>
-            <button id="confirmHintButton" class="start-button">Sim</button>
-            <button id="cancelHintButton" class="start-button">Não</button>
-        </div>
-    </div>
-
     <button class="mute-button" id="muteButton">🔊</button>
 
     <script>
@@ -416,10 +407,6 @@
                 modalCorrectWords: document.getElementById('modalCorrectWords'),
                 modalNewGameButton: document.getElementById('modalNewGameButton'),
                 muteButton: document.getElementById('muteButton'),
-                hintButton: document.getElementById('hintButton'),
-                hintModal: document.getElementById('hintModal'),
-                confirmHintButton: document.getElementById('confirmHintButton'),
-                cancelHintButton: document.getElementById('cancelHintButton'),
             },
 
             sounds: {
@@ -448,9 +435,6 @@
                     this.startGame();
                 });
                 this.elements.muteButton.addEventListener('click', this.toggleMute.bind(this));
-                this.elements.hintButton.addEventListener('click', this.showHintModal.bind(this));
-                this.elements.confirmHintButton.addEventListener('click', this.revealHint.bind(this));
-                this.elements.cancelHintButton.addEventListener('click', () => this.elements.hintModal.style.display = 'none');
                 document.addEventListener('keydown', this.handleKeyDown.bind(this));
             },
 
