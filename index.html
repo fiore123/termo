@@ -74,7 +74,7 @@
             font-size: 1em;
             cursor: pointer;
             border: none;
-            border-radius: 5px;
+            border-radius: 5-px;
         }
         
         .start-button {
@@ -782,12 +782,14 @@
                         const nextBox = gameBoardDiv.children[this.state.currentRow].children[nextCol];
                         this.focusBox(nextBox);
                     }
+                    this.saveGameState();
                 }
             },
 
             deleteLetter: function() {
                 if (!this.state.activeBox) return;
                 this.state.activeBox.textContent = '';
+                this.saveGameState();
             },
 
             checkWord: function() {
@@ -1059,12 +1061,7 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            const savedState = localStorage.getItem('termoGameState');
-            if (savedState) {
-                TermoGame.loadGameState();
-            } else {
-                TermoGame.init();
-            }
+            TermoGame.init();
         });
     </script>
 </body>
