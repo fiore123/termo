@@ -969,78 +969,95 @@
 
                 let allWordsSolved = true;
                 let currentGuessedCorrectly = false;
-                this.state.keyColorStates = {};
                 const numWords = this.state.currentWords.length;
                 let promises = [];
 
                 this.state.currentWords.forEach((wordObj, wordIndex) => {
+                    if (wordObj.solved) return;
+                    
                     const board = document.getElementById(`gameBoard-${wordIndex}`);
                     const row = board.children[this.state.currentRow];
-
-                    if (!wordObj.solved) {
-                        const correctLetters = Array.from(wordObj.word);
-                        const guessedLetters = Array.from(currentGuess);
-                        const guessResult = new Array(this.state.wordLength).fill('absent');
-                        const wordCopy = [...correctLetters];
-                        
-                        for (let i = 0; i < this.state.wordLength; i++) {
-                            if (this.normalizeString(guessedLetters[i]) === this.normalizeString(wordCopy[i])) {
-                                guessResult[i] = 'correct';
-                                wordCopy[i] = null;
-                                guessedLetters[i] = null;
+                    
+                    const correctLetters = Array.from(wordObj.word);
+                    const guessedLetters = Array.from(currentGuess);
+                    const guessResult = new Array(this.state.wordLength).fill('absent');
+                    const wordCopy = [...correctLetters];
+                    
+                    for (let i = 0; i < this.state.wordLength; i++) {
+                        if (this.normalizeString(guessedLetters[i]) === this.normalizeString(wordCopy[i])) {
+                            guessResult[i] = 'correct';
+                            wordCopy[i] = null;
+                            guessedLetters[i] = null;
+                        }
+                    }
+                    for (let i = 0; i < this.state.wordLength; i++) {
+                        if (guessedLetters[i] !== null) {
+                            const normalizedLetter = this.normalizeString(guessedLetters[i]);
+                            const index = wordCopy.findIndex(char => char !== null && this.normalizeString(char) === normalizedLetter);
+                            if (index > -1) {
+                                guessResult[i] = 'present';
+                                wordCopy[index] = null;
                             }
                         }
-                        for (let i = 0; i < this.state.wordLength; i++) {
-                            if (guessedLetters[i] !== null) {
-                                const normalizedLetter = this.normalizeString(guessedLetters[i]);
-                                const index = wordCopy.findIndex(char => char !== null && this.normalizeString(char) === normalizedLetter);
-                                if (index > -1) {
-                                    guessResult[i] = 'present';
-                                    wordCopy[index] = null;
+                    }
+                    
+                    let isWordSolved = true;
+                    
+                    const animationPromise = new Promise(resolve => {
+                        row.querySelectorAll('.box-container').forEach((container, i) => {
+                            setTimeout(() => {
+                                const front = container.querySelector('.box-front');
+                                const back = container.querySelector('.box-back');
+                                
+                                front.textContent = currentGuess[i];
+                                back.textContent = currentGuess[i];
+                                back.classList.add(guessResult[i]);
+                                container.classList.add('flip');
+
+                                if (guessResult[i] !== 'correct') {
+                                    isWordSolved = false;
                                 }
-                            }
-                        }
-                        
-                        let isWordSolved = true;
-                        
-                        const animationPromise = new Promise(resolve => {
-                            row.querySelectorAll('.box-container').forEach((container, i) => {
-                                setTimeout(() => {
-                                    const front = container.querySelector('.box-front');
-                                    const back = container.querySelector('.box-back');
-                                    
-                                    front.textContent = currentGuess[i];
-                                    back.textContent = currentGuess[i];
-                                    back.classList.add(guessResult[i]);
-                                    container.classList.add('flip');
 
-                                    if (guessResult[i] !== 'correct') {
-                                        isWordSolved = false;
+                                const letter = currentGuess[i];
+                                const key = document.querySelector(`.key[data-key="${letter.toLowerCase()}"]`);
+                                if (key) {
+                                    const segments = key.querySelectorAll('.key-segment');
+                                    if (numWords > 1) {
+                                        const segment = segments[wordIndex];
+                                        if (result === 'correct') {
+                                            segment.classList.remove('present', 'absent');
+                                            segment.classList.add('correct');
+                                        } else if (result === 'present' && !segment.classList.contains('correct')) {
+                                            segment.classList.remove('absent');
+                                            segment.classList.add('present');
+                                        } else if (!segment.classList.contains('correct') && !segment.classList.contains('present')) {
+                                            segment.classList.add('absent');
+                                        }
+                                    } else {
+                                        if (result === 'correct') {
+                                            key.classList.remove('present', 'absent');
+                                            key.classList.add('correct');
+                                        } else if (result === 'present' && !key.classList.contains('correct')) {
+                                            key.classList.remove('absent');
+                                            key.classList.add('present');
+                                        } else if (key.classList.contains('correct') === false && key.classList.contains('present') === false) {
+                                            key.classList.add('absent');
+                                        }
                                     }
+                                }
 
-                                    const letter = currentGuess[i];
-                                    if (!this.state.keyColorStates[letter]) {
-                                        this.state.keyColorStates[letter] = new Array(numWords).fill('absent');
-                                    }
-                                    if (guessResult[i] === 'correct') {
-                                        this.state.keyColorStates[letter][wordIndex] = 'correct';
-                                    } else if (guessResult[i] === 'present' && this.state.keyColorStates[letter][wordIndex] !== 'correct') {
-                                        this.state.keyColorStates[letter][wordIndex] = 'present';
-                                    }
-
-                                    if (i === this.state.wordLength - 1) {
-                                        resolve();
-                                    }
-                                }, i * 350);
-                            });
+                                if (i === this.state.wordLength - 1) {
+                                    resolve();
+                                }
+                            }, i * 350);
                         });
-                        promises.push(animationPromise);
-                        
-                        if (isWordSolved && !wordObj.solved) {
-                            wordObj.solved = true;
-                            this.state.solvedWords++;
-                            currentGuessedCorrectly = true;
-                        }
+                    });
+                    promises.push(animationPromise);
+                    
+                    if (isWordSolved && !wordObj.solved) {
+                        wordObj.solved = true;
+                        this.state.solvedWords++;
+                        currentGuessedCorrectly = true;
                     }
                     if (!wordObj.solved) {
                         allWordsSolved = false;
@@ -1048,17 +1065,8 @@
                 });
                 
                 Promise.all(promises).then(() => {
-                    this.updateKeyboardColors();
-                    this.saveGameState();
-
                     if (currentGuessedCorrectly) {
                         this.playSound(this.sounds.correct);
-                        this.state.currentWords.forEach((wordObj, wordIndex) => {
-                            if (wordObj.solved) {
-                                const board = document.getElementById(`gameBoard-${wordIndex}`);
-                                this.updateBoardWithCorrectWord(board, wordObj.word);
-                            }
-                        });
                     }
                     
                     if (allWordsSolved) {
@@ -1091,30 +1099,6 @@
                         if (firstBox) {
                             this.focusBox(firstBox);
                         }
-                    }
-                });
-            },
-
-            updateKeyboardColors: function() {
-                const numWords = this.state.currentWords.length;
-                const allKeys = document.querySelectorAll('.key');
-
-                allKeys.forEach(key => {
-                    const keyText = key.dataset.key.toUpperCase();
-                    if (this.state.keyColorStates[keyText]) {
-                        const segments = key.querySelectorAll('.key-segment');
-                        this.state.keyColorStates[keyText].forEach((result, index) => {
-                             const segment = segments[index];
-                             if (result === 'correct') {
-                                 segment.classList.remove('present', 'absent');
-                                 segment.classList.add('correct');
-                             } else if (result === 'present' && !segment.classList.contains('correct')) {
-                                 segment.classList.remove('absent');
-                                 segment.classList.add('present');
-                             } else if (!segment.classList.contains('correct') && !segment.classList.contains('present')) {
-                                 segment.classList.add('absent');
-                             }
-                         });
                     }
                 });
             },
@@ -1261,12 +1245,12 @@
                 
                 if (availableLetters.length > 0) {
                     const randomHint = availableLetters[Math.floor(Math.random() * availableLetters.length)];
-                    const boxToFill = activeRow.children[randomHint.index].querySelector('.box-front');
+                    const boxToFillFront = activeRow.children[randomHint.index].querySelector('.box-front');
+                    const boxToFillBack = activeRow.children[randomHint.index].querySelector('.box-back');
                     
-                    boxToFill.textContent = randomHint.letter;
-                    const backBox = activeRow.children[randomHint.index].querySelector('.box-back');
-                    backBox.textContent = randomHint.letter;
-                    backBox.classList.add('correct');
+                    boxToFillFront.textContent = randomHint.letter;
+                    boxToFillBack.textContent = randomHint.letter;
+                    boxToFillBack.classList.add('correct');
                     activeRow.children[randomHint.index].classList.add('flip');
                 }
             },
