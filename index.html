@@ -149,7 +149,7 @@
             background-color: var(--absent);
             border-color: var(--absent);
         }
-
+        
         .pop {
             animation: pop-animation 0.2s ease-out;
         }
@@ -862,7 +862,7 @@
                     const guessedLetters = Array.from(currentGuess);
                     const guessResult = new Array(this.state.wordLength).fill('absent');
                     const wordCopy = [...correctLetters];
-
+                    
                     for (let i = 0; i < this.state.wordLength; i++) {
                         if (this.normalizeString(guessedLetters[i]) === this.normalizeString(wordCopy[i])) {
                             guessResult[i] = 'correct';
@@ -884,7 +884,15 @@
                     let isWordSolved = true;
                     for (let i = 0; i < this.state.wordLength; i++) {
                         const box = row.children[i];
-                        box.classList.add(guessResult[i]);
+                        
+                        setTimeout(() => {
+                           box.classList.add(guessResult[i]);
+                           box.classList.add('pop');
+                           setTimeout(() => {
+                              box.classList.remove('pop');
+                           }, 200);
+                        }, i * 200);
+
                         if (guessResult[i] !== 'correct') {
                             isWordSolved = false;
                         }
@@ -913,19 +921,6 @@
                     }
                 });
                 
-                // Animate and update keyboard
-                const firstRowBoxes = document.querySelector(`.gameBoard .row:nth-child(${this.state.currentRow + 1})`).children;
-                for (let i = 0; i < this.state.wordLength; i++) {
-                    const box = firstRowBoxes[i];
-                    setTimeout(() => {
-                        box.classList.add('pop');
-                        setTimeout(() => {
-                            box.classList.remove('pop');
-                            box.classList.add('colored');
-                        }, 200);
-                    }, i * 200);
-                }
-
                 // Wait for all animations to complete before proceeding
                 setTimeout(() => {
                     this.updateKeyboardColors(keyboardColorUpdates);
