@@ -93,19 +93,13 @@
             gap: 20px;
             flex-wrap: wrap;
             justify-content: center;
-            width: 100%;
-            max-width: 550px;
         }
         
         .gameBoard {
             display: flex;
             flex-direction: column;
             gap: 8px;
-            flex-grow: 1;
-            flex-shrink: 1;
-            flex-basis: 250px;
-            max-width: 250px;
-            min-width: 200px;
+            min-width: 300px;
             border-radius: 5px;
         }
 
@@ -115,6 +109,8 @@
         }
 
         .box {
+            width: 50px;
+            height: 50px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -126,8 +122,6 @@
             color: white;
             box-sizing: border-box;
             border-radius: 5px;
-            flex: 1;
-            aspect-ratio: 1 / 1;
             transition: transform var(--animation-duration) ease-out, background-color 0.2s, border-color 0.2s;
         }
 
@@ -292,57 +286,6 @@
             margin: 8px 0;
             font-size: 1.1em;
             font-weight: 400;
-        }
-        
-        .stats-chart-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: 20px;
-        }
-
-        .stats-chart-bar {
-            background-color: var(--absent);
-            height: 20px;
-            border-radius: 3px;
-            margin: 3px 0;
-            display: flex;
-            align-items: center;
-            transition: width 0.5s ease-in-out;
-        }
-
-        .stats-chart-bar .label {
-            font-weight: 600;
-            font-size: 0.9em;
-            padding: 0 5px;
-        }
-        
-        .stats-chart-bar .value {
-            font-weight: 600;
-            font-size: 0.9em;
-            padding: 0 5px;
-            color: var(--text-color);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            width: 100%;
-            margin-top: 20px;
-        }
-
-        .stats-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-size: 1.2em;
-            font-weight: 600;
-        }
-
-        .stats-item .value {
-            font-size: 1.5em;
-            color: white;
         }
 
         .mute-button {
@@ -804,10 +747,9 @@
                 let keyboardColorUpdates = {};
                 const numWords = parseInt(this.elements.wordCountSelect.value);
 
-                const rowElements = document.querySelectorAll(`.gameBoard .row[data-row="${this.state.currentRow}"]`);
-
-                rowElements.forEach((row, wordIndex) => {
-                    const wordObj = this.state.currentWords[wordIndex];
+                this.state.currentWords.forEach((wordObj, wordIndex) => {
+                    const board = document.getElementById(`gameBoard-${wordIndex}`);
+                    const row = board.children[this.state.currentRow];
 
                     if (!wordObj.solved) {
                         const correctLetters = Array.from(wordObj.word);
@@ -834,9 +776,19 @@
                         }
                         
                         let isWordSolved = true;
+                        
                         for (let i = 0; i < this.state.wordLength; i++) {
                             const box = row.children[i];
-                            box.classList.add(guessResult[i]);
+                            const animationDuration = 250;
+
+                            setTimeout(() => {
+                                box.classList.add(guessResult[i]);
+                                box.classList.add('pop');
+                                setTimeout(() => {
+                                    box.classList.remove('pop');
+                                }, animationDuration);
+                            }, i * 200);
+
                             if (guessResult[i] !== 'correct') {
                                 isWordSolved = false;
                             }
@@ -853,41 +805,72 @@
                     }
                 });
 
+                for (const letter in keyboardColorUpdates) {
+                    const key = document.querySelector(`.key[data-key="${letter.toLowerCase()}"]`);
+                    if (key) {
+                        if (numWords > 1) {
+                             const segments = key.querySelectorAll('.key-segment');
+                             keyboardColorUpdates[letter].forEach((result, index) => {
+                                 const segment = segments[index];
+                                 if (result === 'correct') {
+                                     segment.classList.remove('present', 'absent');
+                                     segment.classList.add('correct');
+                                 } else if (result === 'present' && !segment.classList.contains('correct')) {
+                                     segment.classList.remove('absent');
+                                     segment.classList.add('present');
+                                 } else if (!segment.classList.contains('correct') && !segment.classList.contains('present')) {
+                                     segment.classList.add('absent');
+                                 }
+                             });
+                        } else {
+                            const result = keyboardColorUpdates[letter][0];
+                            if (result === 'correct') {
+                                key.classList.remove('present', 'absent');
+                                key.classList.add('correct');
+                            } else if (result === 'present' && !key.classList.contains('correct')) {
+                                key.classList.remove('absent');
+                                key.classList.add('present');
+                            } else if (key.classList.contains('correct') === false && key.classList.contains('present') === false) {
+                                key.classList.add('absent');
+                            }
+                        }
+                    }
+                }
+
                 if (currentGuessedCorrectly) {
                     this.playSound(this.sounds.correct);
                 }
                 
-                if (allWordsSolved) {
-                    this.state.victoryCount++;
-                    if (this.state.victoryCount > this.state.recordCount) {
-                        this.state.recordCount = this.state.victoryCount;
-                        this.elements.recordCountDisplay.textContent = this.state.recordCount;
+                setTimeout(() => {
+                    if (allWordsSolved) {
+                        this.state.victoryCount++;
+                        if (this.state.victoryCount > this.state.recordCount) {
+                            this.state.recordCount = this.state.victoryCount;
+                            this.elements.recordCountDisplay.textContent = this.state.recordCount;
+                        }
+                        this.elements.victoryCountDisplay.textContent = this.state.victoryCount;
+                        this.saveGameData();
+                        
+                        const timeTaken = new Date() - this.state.startTime;
+                        this.showEndGameModal(`Você venceu!`, timeTaken, true);
+                        this.disableGame();
+                    } else if (this.state.currentRow === this.state.maxAttempts - 1) {
+                        this.playSound(this.sounds.defeat);
+                        const timeTaken = new Date() - this.state.startTime;
+                        this.showEndGameModal(`Você perdeu!`, timeTaken);
+                        this.disableGame();
+                        this.state.victoryCount = 0;
+                        this.elements.victoryCountDisplay.textContent = this.state.victoryCount;
+                        this.saveGameData();
+                    } else {
+                        this.state.currentRow++;
+                        this.state.activeBox = null;
+                        const firstBox = document.querySelector(`.box[data-row="${this.state.currentRow}"]`);
+                        if (firstBox) {
+                            this.focusBox(firstBox);
+                        }
                     }
-                    this.elements.victoryCountDisplay.textContent = this.state.victoryCount;
-                    this.saveGameData();
-                    localStorage.removeItem('termoGameState');
-                    
-                    const timeTaken = new Date() - this.state.startTime;
-                    this.showEndGameModal(`Você venceu!`, timeTaken, true);
-                    this.disableGame();
-                } else if (this.state.currentRow === this.state.maxAttempts - 1) {
-                    this.playSound(this.sounds.defeat);
-                    const timeTaken = new Date() - this.state.startTime;
-                    this.showEndGameModal(`Você perdeu!`, timeTaken);
-                    this.disableGame();
-                    this.state.victoryCount = 0;
-                    this.elements.victoryCountDisplay.textContent = this.state.victoryCount;
-                    this.saveGameData();
-                    localStorage.removeItem('termoGameState');
-                } else {
-                    this.state.currentRow++;
-                    this.state.activeBox = null;
-                    const firstBox = document.querySelector(`.box[data-row="${this.state.currentRow}"]`);
-                    if (firstBox) {
-                        this.focusBox(firstBox);
-                    }
-                    this.saveGameState();
-                }
+                }, 2000);
             },
 
             isWordValid: function(word) {
