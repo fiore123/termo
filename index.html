@@ -114,17 +114,7 @@
             gap: 8px;
         }
 
-        .box-container {
-            position: relative;
-            flex-grow: 1;
-            aspect-ratio: 1 / 1;
-            perspective: 1000px;
-        }
-        
         .box {
-            position: absolute;
-            width: 100%;
-            height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -136,25 +126,13 @@
             color: white;
             box-sizing: border-box;
             border-radius: 5px;
-            backface-visibility: hidden;
-            transition: transform var(--animation-duration);
-            transform-style: preserve-3d;
+            flex: 1;
+            aspect-ratio: 1 / 1;
+            transition: transform var(--animation-duration) ease-out, background-color 0.2s, border-color 0.2s;
         }
 
         .box.active {
             border-color: white;
-        }
-
-        .box-front {
-            z-index: 2;
-        }
-
-        .box-back {
-            transform: rotateX(180deg);
-        }
-
-        .flip {
-            transform: rotateX(180deg);
         }
 
         .correct {
@@ -170,6 +148,16 @@
         .absent {
             background-color: var(--absent);
             border-color: var(--absent);
+        }
+
+        .pop {
+            animation: pop-animation 0.2s ease-out;
+        }
+
+        @keyframes pop-animation {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
         
         #keyboard {
@@ -500,13 +488,16 @@
                 wordLength: 5,
                 currentRow: 0,
                 maxAttempts: 6,
-                victoryCount: 0,
-                recordCount: 0,
-                normalizedWordDatabase: [],
-                startTime: null,
-                isMuted: false,
-                solvedWords: 0,
+                isDailyGame: false,
+                hintsAvailable: 3,
                 keyColorStates: {},
+                gameStats: {
+                    played: 0,
+                    wins: 0,
+                    currentWinStreak: 0,
+                    maxWinStreak: 0,
+                    guessDistribution: {}
+                }
             },
 
             elements: {
@@ -664,7 +655,7 @@
             },
 
             createGameBoards: function() {
-                const numWords = this.state.currentWords.length;
+                const numWords = parseInt(this.elements.wordCountSelect.value);
                 this.elements.gameContainer.style.gridTemplateColumns = `repeat(${numWords}, 1fr)`;
 
                 this.state.currentWords.forEach((wordObj, wordIndex) => {
@@ -818,44 +809,53 @@
                     const row = board.children[this.state.currentRow];
 
                     if (!wordObj.solved) {
-                        const correctLetters = Array.from(wordObj.word);
-                        const guessedLetters = Array.from(currentGuess);
-                        const guessResult = new Array(this.state.wordLength).fill('absent');
-                        const wordCopy = [...correctLetters];
-                        
                         for (let i = 0; i < this.state.wordLength; i++) {
-                            if (this.normalizeString(guessedLetters[i]) === this.normalizeString(wordCopy[i])) {
-                                guessResult[i] = 'correct';
-                                wordCopy[i] = null;
-                                guessedLetters[i] = null;
-                            }
-                        }
-                        for (let i = 0; i < this.state.wordLength; i++) {
-                            if (guessedLetters[i] !== null) {
-                                const normalizedLetter = this.normalizeString(guessedLetters[i]);
-                                const index = wordCopy.findIndex(char => char !== null && this.normalizeString(char) === normalizedLetter);
-                                if (index > -1) {
-                                    guessResult[i] = 'present';
-                                    wordCopy[index] = null;
-                                }
-                            }
-                        }
-                        
-                        let isWordSolved = true;
-                        for (let i = 0; i < this.state.wordLength; i++) {
-                            const box = row.children[i];
-                            box.classList.add(guessResult[i]);
-                            if (guessResult[i] !== 'correct') {
-                                isWordSolved = false;
-                            }
-                        }
-                        
-                        if (isWordSolved && !wordObj.solved) {
-                            wordObj.solved = true;
-                            this.state.solvedWords++;
-                            currentGuessedCorrectly = true;
+                            row.children[i].textContent = currentGuess[i];
                         }
                     }
+                    
+                    if (wordObj.solved) {
+                        return;
+                    }
+                    
+                    const correctLetters = Array.from(wordObj.word);
+                    const guessedLetters = Array.from(currentGuess);
+                    const guessResult = new Array(this.state.wordLength).fill('absent');
+                    const wordCopy = [...correctLetters];
+                    
+                    for (let i = 0; i < this.state.wordLength; i++) {
+                        if (this.normalizeString(guessedLetters[i]) === this.normalizeString(wordCopy[i])) {
+                            guessResult[i] = 'correct';
+                            wordCopy[i] = null;
+                            guessedLetters[i] = null;
+                        }
+                    }
+                    for (let i = 0; i < this.state.wordLength; i++) {
+                        if (guessedLetters[i] !== null) {
+                            const normalizedLetter = this.normalizeString(guessedLetters[i]);
+                            const index = wordCopy.findIndex(char => char !== null && this.normalizeString(char) === normalizedLetter);
+                            if (index > -1) {
+                                guessResult[i] = 'present';
+                                wordCopy[index] = null;
+                            }
+                        }
+                    }
+                    
+                    let isWordSolved = true;
+                    for (let i = 0; i < this.state.wordLength; i++) {
+                        const box = row.children[i];
+                        box.classList.add(guessResult[i]);
+                        if (guessResult[i] !== 'correct') {
+                            isWordSolved = false;
+                        }
+                    }
+                    
+                    if (isWordSolved && !wordObj.solved) {
+                        wordObj.solved = true;
+                        this.state.solvedWords++;
+                        currentGuessedCorrectly = true;
+                    }
+
                     if (!wordObj.solved) {
                         allWordsSolved = false;
                     }
