@@ -348,57 +348,6 @@
             font-size: 1.1em;
             font-weight: 400;
         }
-        
-        .stats-chart-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: 20px;
-        }
-
-        .stats-chart-bar {
-            background-color: var(--absent);
-            height: 20px;
-            border-radius: 3px;
-            margin: 3px 0;
-            display: flex;
-            align-items: center;
-            transition: width 0.5s ease-in-out;
-        }
-
-        .stats-chart-bar .label {
-            font-weight: 600;
-            font-size: 0.9em;
-            padding: 0 5px;
-        }
-        
-        .stats-chart-bar .value {
-            font-weight: 600;
-            font-size: 0.9em;
-            padding: 0 5px;
-            color: var(--text-color);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            width: 100%;
-            margin-top: 20px;
-        }
-
-        .stats-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-size: 1.2em;
-            font-weight: 600;
-        }
-
-        .stats-item .value {
-            font-size: 1.5em;
-            color: white;
-        }
 
         .mute-button {
             background-color: transparent;
@@ -972,19 +921,19 @@
                     const key = document.querySelector(`.key[data-key="${letter.toLowerCase()}"]`);
                     if (key) {
                         if (numWords > 1) {
-                             const segments = key.querySelectorAll('.key-segment');
-                             colorUpdates[letter].forEach((result, index) => {
-                                 const segment = segments[index];
-                                 if (result === 'correct') {
-                                     segment.classList.remove('present', 'absent');
-                                     segment.classList.add('correct');
-                                 } else if (result === 'present' && !segment.classList.contains('correct')) {
-                                     segment.classList.remove('absent');
-                                     segment.classList.add('present');
-                                 } else if (!segment.classList.contains('correct') && !segment.classList.contains('present')) {
-                                     segment.classList.add('absent');
-                                 }
-                             });
+                            const segments = key.querySelectorAll('.key-segment');
+                            colorUpdates[letter].forEach((result, index) => {
+                                const segment = segments[index];
+                                if (result === 'correct') {
+                                    segment.classList.remove('present', 'absent');
+                                    segment.classList.add('correct');
+                                } else if (result === 'present' && !segment.classList.contains('correct')) {
+                                    segment.classList.remove('absent');
+                                    segment.classList.add('present');
+                                } else if (!segment.classList.contains('correct') && !segment.classList.contains('present')) {
+                                    segment.classList.add('absent');
+                                }
+                            });
                         } else {
                             const result = colorUpdates[letter][0];
                             if (result === 'correct') {
