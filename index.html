@@ -18,6 +18,7 @@
             --correct: #6aaa64;
             --present: #c9b458;
             --absent: #3a3a3c;
+            --animation-duration: 0.3s;
         }
 
         body {
@@ -92,13 +93,19 @@
             gap: 20px;
             flex-wrap: wrap;
             justify-content: center;
+            width: 100%;
+            max-width: 550px;
         }
         
         .gameBoard {
             display: flex;
             flex-direction: column;
             gap: 8px;
-            min-width: 300px;
+            flex-grow: 1;
+            flex-shrink: 1;
+            flex-basis: 250px;
+            max-width: 250px;
+            min-width: 200px;
             border-radius: 5px;
         }
 
@@ -107,9 +114,17 @@
             gap: 8px;
         }
 
+        .box-container {
+            position: relative;
+            flex-grow: 1;
+            aspect-ratio: 1 / 1;
+            perspective: 1000px;
+        }
+        
         .box {
-            width: 50px;
-            height: 50px;
+            position: absolute;
+            width: 100%;
+            height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -119,14 +134,27 @@
             border: 2px solid var(--box-border);
             background-color: var(--main-bg);
             color: white;
-            cursor: pointer;
             box-sizing: border-box;
-            transition: background-color 0.3s, border-color 0.3s;
             border-radius: 5px;
+            backface-visibility: hidden;
+            transition: transform var(--animation-duration);
+            transform-style: preserve-3d;
         }
-        
+
         .box.active {
             border-color: white;
+        }
+
+        .box-front {
+            z-index: 2;
+        }
+
+        .box-back {
+            transform: rotateX(180deg);
+        }
+
+        .flip {
+            transform: rotateX(180deg);
         }
 
         .correct {
@@ -277,11 +305,59 @@
             font-size: 1.1em;
             font-weight: 400;
         }
+        
+        .stats-chart-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .stats-chart-bar {
+            background-color: var(--absent);
+            height: 20px;
+            border-radius: 3px;
+            margin: 3px 0;
+            display: flex;
+            align-items: center;
+            transition: width 0.5s ease-in-out;
+        }
+
+        .stats-chart-bar .label {
+            font-weight: 600;
+            font-size: 0.9em;
+            padding: 0 5px;
+        }
+        
+        .stats-chart-bar .value {
+            font-weight: 600;
+            font-size: 0.9em;
+            padding: 0 5px;
+            color: var(--text-color);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .stats-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+
+        .stats-item .value {
+            font-size: 1.5em;
+            color: white;
+        }
 
         .mute-button {
-            position: absolute;
-            top: 20px;
-            right: 20px;
             background-color: transparent;
             border: none;
             cursor: pointer;
@@ -735,70 +811,51 @@
                 let allWordsSolved = true;
                 let currentGuessedCorrectly = false;
                 let keyboardColorUpdates = {};
-                const numWords = this.state.currentWords.length;
+                const numWords = parseInt(this.elements.wordCountSelect.value);
 
                 this.state.currentWords.forEach((wordObj, wordIndex) => {
                     const board = document.getElementById(`gameBoard-${wordIndex}`);
                     const row = board.children[this.state.currentRow];
 
                     if (!wordObj.solved) {
+                        const correctLetters = Array.from(wordObj.word);
+                        const guessedLetters = Array.from(currentGuess);
+                        const guessResult = new Array(this.state.wordLength).fill('absent');
+                        const wordCopy = [...correctLetters];
+                        
                         for (let i = 0; i < this.state.wordLength; i++) {
-                            row.children[i].textContent = currentGuess[i];
-                        }
-                    }
-                    
-                    if (wordObj.solved) {
-                        return;
-                    }
-                    
-                    const correctLetters = Array.from(wordObj.word);
-                    const guessedLetters = Array.from(currentGuess);
-                    const guessResult = new Array(this.state.wordLength).fill('absent');
-                    const wordCopy = [...correctLetters];
-                    
-                    for (let i = 0; i < this.state.wordLength; i++) {
-                        if (this.normalizeString(guessedLetters[i]) === this.normalizeString(wordCopy[i])) {
-                            guessResult[i] = 'correct';
-                            wordCopy[i] = null;
-                            guessedLetters[i] = null;
-                        }
-                    }
-                    for (let i = 0; i < this.state.wordLength; i++) {
-                        if (guessedLetters[i] !== null) {
-                            const normalizedLetter = this.normalizeString(guessedLetters[i]);
-                            const index = wordCopy.findIndex(char => char !== null && this.normalizeString(char) === normalizedLetter);
-                            if (index > -1) {
-                                guessResult[i] = 'present';
-                                wordCopy[index] = null;
+                            if (this.normalizeString(guessedLetters[i]) === this.normalizeString(wordCopy[i])) {
+                                guessResult[i] = 'correct';
+                                wordCopy[i] = null;
+                                guessedLetters[i] = null;
                             }
                         }
-                    }
-                    
-                    let isWordSolved = true;
-                    for (let i = 0; i < this.state.wordLength; i++) {
-                        const box = row.children[i];
-                        box.classList.add(guessResult[i]);
-                        if (guessResult[i] !== 'correct') {
-                            isWordSolved = false;
+                        for (let i = 0; i < this.state.wordLength; i++) {
+                            if (guessedLetters[i] !== null) {
+                                const normalizedLetter = this.normalizeString(guessedLetters[i]);
+                                const index = wordCopy.findIndex(char => char !== null && this.normalizeString(char) === normalizedLetter);
+                                if (index > -1) {
+                                    guessResult[i] = 'present';
+                                    wordCopy[index] = null;
+                                }
+                            }
                         }
                         
-                        const letter = currentGuess[i];
-                        if (!keyboardColorUpdates[letter]) {
-                            keyboardColorUpdates[letter] = new Array(numWords).fill('absent');
+                        let isWordSolved = true;
+                        for (let i = 0; i < this.state.wordLength; i++) {
+                            const box = row.children[i];
+                            box.classList.add(guessResult[i]);
+                            if (guessResult[i] !== 'correct') {
+                                isWordSolved = false;
+                            }
                         }
-                        if (guessResult[i] === 'correct') {
-                            keyboardColorUpdates[letter][wordIndex] = 'correct';
-                        } else if (guessResult[i] === 'present' && keyboardColorUpdates[letter][wordIndex] !== 'correct') {
-                            keyboardColorUpdates[letter][wordIndex] = 'present';
+                        
+                        if (isWordSolved && !wordObj.solved) {
+                            wordObj.solved = true;
+                            this.state.solvedWords++;
+                            currentGuessedCorrectly = true;
                         }
                     }
-                    
-                    if (isWordSolved && !wordObj.solved) {
-                        wordObj.solved = true;
-                        this.state.solvedWords++;
-                        currentGuessedCorrectly = true;
-                    }
-
                     if (!wordObj.solved) {
                         allWordsSolved = false;
                     }
@@ -838,12 +895,6 @@
 
                 if (currentGuessedCorrectly) {
                     this.playSound(this.sounds.correct);
-                    this.state.currentWords.forEach((wordObj, wordIndex) => {
-                        if (wordObj.solved) {
-                            const board = document.getElementById(`gameBoard-${wordIndex}`);
-                            this.updateBoardWithCorrectWord(board, wordObj.word);
-                        }
-                    });
                 }
                 
                 if (allWordsSolved) {
