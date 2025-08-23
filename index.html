@@ -144,14 +144,32 @@
             border-color: var(--absent);
         }
                 /* Animação de confirmação para a linha inteira */
-       .row.guess-confirmed-row {
-            animation: flip-in 0.5s ease-in-out forwards;
+        .guess-confirmed-row.letter-box {
+          transform-style: preserve-3d;
+          animation: flip-in 0.5s ease-in-out forwards;
         }
-
-       .row.guess-confirmed-row.box {
-            animation-delay: var(--delay);
-            animation-fill-mode: both;
+        
+        /* Animação sequencial para as letras */
+        .guess-confirmed-row.letter-box:nth-child(1) {
+          animation-delay: 0.1s;
         }
+        
+        .guess-confirmed-row.letter-box:nth-child(2) {
+          animation-delay: 0.2s;
+        }
+        
+        .guess-confirmed-row.letter-box:nth-child(3) {
+          animation-delay: 0.3s;
+        }
+        
+        .guess-confirmed-row.letter-box:nth-child(4) {
+          animation-delay: 0.4s;
+        }
+        
+        .guess-confirmed-row.letter-box:nth-child(5) {
+          animation-delay: 0.5s;
+        }
+        
 
         /* Keyframes para a animação de virada */
         @keyframes flip-in {
@@ -1057,4 +1075,5 @@
     </script>
 </body>
 </html>
+
 
