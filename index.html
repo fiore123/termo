@@ -469,7 +469,6 @@
                 startTime: null,
                 isMuted: false,
                 solvedWords: 0,
-                activeBox: null,
             },
 
             elements: {
@@ -579,7 +578,7 @@
             },
 
             startGame: function() {
-                this.state.currentWords =;
+                this.state.currentWords = [];
                 this.state.solvedWords = 0;
                 const numWords = parseInt(this.elements.wordCountSelect.value);
 
@@ -611,7 +610,9 @@
                 this.resetGame();
                 this.createGameBoards();
                 this.createKeyboard();
-                this.focusFirstUnsolvedBox();
+                if (document.querySelector('.box')) {
+                    this.focusBox(document.querySelector('.box'));
+                }
                 this.state.startTime = new Date();
             },
 
@@ -621,6 +622,7 @@
                 this.state.currentRow = 0;
                 this.state.activeBox = null;
                 this.elements.keyboardContainer.innerHTML = '';
+                this.state.keyColorStates = {};
             },
 
             createGameBoards: function() {
@@ -1090,3 +1092,4 @@
     </script>
 </body>
 </html>
+
